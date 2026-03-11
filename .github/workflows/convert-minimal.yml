@@ -1,0 +1,99 @@
+name: Convert Wake Word Model to TFLite (Minimal)
+
+on:
+  workflow_dispatch:
+
+jobs:
+  convert:
+    runs-on: ubuntu-22.04
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Set up Python 3.10
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.10'
+    
+    - name: Install minimal dependencies
+      run: |
+        pip install --no-cache-dir numpy==1.21.6 tensorflow==2.10.1 protobuf==3.19.6 pyyaml scipy tqdm
+    
+    - name: Clone micro-wake-word
+      run: |
+        git clone https://github.com/kahrendt/microWakeWord.git
+        cd microWakeWord
+        git checkout 8a3c6b8  # Pin to a known working commit
+    
+    - name: Convert model to TFLite
+      run: |
+        python3 << 'EOF'
+        import sys
+        sys.path.insert(0, 'microWakeWord')
+        
+        import os
+        os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
+        
+        import tensorflow as tf
+        import numpy as np
+        from microwakeword import mixednet
+        
+        print(f"TF: {tf.__version__}, NumPy: {np.__version__}")
+        
+        # Create model
+        model = mixednet.model(
+            flags=mixednet.model_parameters(
+                pointwise_filters='64,64,64,64',
+                repeat_in_block='1,1,1,1',
+                mixconv_kernel_sizes='[5],[7,11],[9,15],[23]',
+                residual_connection='0,0,0,0',
+                first_conv_filters=32,
+                first_conv_kernel_size=5,
+                stride=3
+            ),
+            shape=(204, 40),
+            batch_size=1
+        )
+        
+        print(f"Model params: {model.count_params()}")
+        
+        # Load weights
+        model.load_weights('last_weights.weights.h5')
+        print("Weights loaded!")
+        
+        # Convert to TFLite
+        converter = tf.lite.TFLiteConverter.from_keras_model(model)
+        converter.optimizations = [tf.lite.Optimize.DEFAULT]
+        
+        # Quantization
+        def representative_dataset():
+            for _ in range(100):
+                yield [np.random.randint(-128, 127, (1, 204, 40)).astype(np.float32)]
+        
+        converter.representative_dataset = representative_dataset
+        converter.target_spec.supported_ops = [tf.lite.OpsSet.TFLITE_BUILTINS_INT8]
+        converter.inference_input_type = tf.int8
+        converter.inference_output_type = tf.int8
+        
+        tflite_model = converter.convert()
+        
+        os.makedirs('model_output', exist_ok=True)
+        with open('model_output/hey_aragorn.tflite', 'wb') as f:
+            f.write(tflite_model)
+        
+        print(f"Model saved! Size: {len(tflite_model)/1024:.1f} KB")
+        EOF
+    
+    - name: Upload model
+      uses: actions/upload-artifact@v4
+      with:
+        name: hey-aragorn-model
+        path: model_output/hey_aragorn.tflite
+    
+    - name: Commit model
+      run: |
+        git config --local user.email "action@github.com"
+        git config --local user.name "GitHub Action"
+        git add model_output/
+        git commit -m "Add converted TFLite model" || echo "No changes"
+        git push || echo "Push failed"
