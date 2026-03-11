@@ -17,8 +17,8 @@ jobs:
     
     - name: Install dependencies
       run: |
-        pip install tensorflow==2.10.0 numpy==1.23.5 pyyaml scipy datasets mmap-ninja tqdm tensorflow-probability==0.18.0
-        pip install git+https://github.com/kahrendt/microWakeWord.git
+        pip install --no-cache-dir numpy==1.21.6 tensorflow==2.10.1 protobuf==3.19.6 pyyaml scipy datasets==2.14.0 mmap-ninja tqdm tensorflow-probability==0.18.0
+        pip install --no-cache-dir git+https://github.com/kahrendt/microWakeWord.git
     
     - name: Convert model to TFLite
       run: |
