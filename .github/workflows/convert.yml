@@ -1,0 +1,58 @@
+name: Convert Wake Word Model to TFLite
+
+on:
+  workflow_dispatch:  # Manual trigger only
+
+jobs:
+  convert:
+    runs-on: ubuntu-20.04  # Older Ubuntu for compatibility
+    
+    steps:
+    - uses: actions/checkout@v3
+    
+    - name: Set up Python 3.10
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.10'
+    
+    - name: Install dependencies
+      run: |
+        pip install tensorflow==2.10.0 numpy==1.23.5 pyyaml scipy datasets mmap-ninja tqdm tensorflow-probability==0.18.0
+        pip install git+https://github.com/kahrendt/microWakeWord.git
+    
+    - name: Convert model to TFLite
+      run: |
+        python3 -m microwakeword.model_train_eval \
+          --training_config=training_parameters.yaml \
+          --train=0 \
+          --restore_checkpoint 1 \
+          --test_tf_nonstreaming 0 \
+          --test_tflite_nonstreaming 0 \
+          --test_tflite_nonstreaming_quantized 0 \
+          --test_tflite_streaming 0 \
+          --test_tflite_streaming_quantized 1 \
+          --use_weights best_weights \
+          mixednet \
+          --pointwise_filters "64,64,64,64" \
+          --repeat_in_block "1, 1, 1, 1" \
+          --mixconv_kernel_sizes '[5], [7,11], [9,15], [23]' \
+          --residual_connection "0,0,0,0" \
+          --first_conv_filters 32 \
+          --first_conv_kernel_size 5 \
+          --stride 3
+    
+    - name: Upload model artifact
+      uses: actions/upload-artifact@v3
+      with:
+        name: hey-aragorn-wakeword-model
+        path: trained_models/wakeword/tflite_stream_state_internal_quant/stream_state_internal_quant.tflite
+    
+    - name: Commit model to repo
+      run: |
+        git config --local user.email "action@github.com"
+        git config --local user.name "GitHub Action"
+        mkdir -p model_output
+        cp trained_models/wakeword/tflite_stream_state_internal_quant/stream_state_internal_quant.tflite model_output/hey_aragorn.tflite
+        git add model_output/
+        git commit -m "Add converted TFLite model" || echo "No changes"
+        git push || echo "Push failed"
