@@ -20,6 +20,10 @@ jobs:
         pip install --no-cache-dir numpy==1.21.6 tensorflow==2.10.1 protobuf==3.19.6 pyyaml scipy datasets==2.14.0 mmap-ninja tqdm tensorflow-probability==0.18.0
         pip install --no-cache-dir git+https://github.com/kahrendt/microWakeWord.git
     
+    - name: Apply numpy compatibility fix
+      run: |
+        cp microwakeword_train_fixed.py $(python3 -c "import microwakeword; print(microwakeword.__path__[0])")/train.py
+    
     - name: Convert model to TFLite
       run: |
         python3 -m microwakeword.model_train_eval \
