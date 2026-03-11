@@ -17,8 +17,10 @@ jobs:
     
     - name: Install dependencies
       run: |
-        pip install --no-cache-dir tensorflow==2.16.1 numpy==1.26.4 pyyaml scipy datasets mmap-ninja tqdm
-        pip install --no-cache-dir git+https://github.com/kahrendt/microWakeWord.git
+        pip install --no-cache-dir tensorflow==2.16.1 numpy==1.26.4 pyyaml scipy datasets mmap-ninja tqdm audiomentations webrtcvad-wheels
+        git clone https://github.com/kahrendt/microWakeWord.git
+        cd microWakeWord
+        pip install --no-cache-dir -e .
     
     - name: Convert model to TFLite
       run: |
