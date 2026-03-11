@@ -5,7 +5,7 @@ on:
 
 jobs:
   convert:
-    runs-on: ubuntu-latest  # Use latest for faster queue times
+    runs-on: ubuntu-22.04  # Ubuntu 22.04 has better runner availability than 20.04
     
     steps:
     - uses: actions/checkout@v3
