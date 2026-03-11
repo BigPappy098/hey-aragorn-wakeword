@@ -5,7 +5,7 @@ on:
 
 jobs:
   convert:
-    runs-on: ubuntu-20.04  # Older Ubuntu for compatibility
+    runs-on: ubuntu-latest  # Use latest for faster queue times
     
     steps:
     - uses: actions/checkout@v3
