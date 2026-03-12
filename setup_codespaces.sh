@@ -1,14 +1,27 @@
 #!/bin/bash
-# Setup script for Hey Aragorn training in Codespaces
+# Setup script for Hey Aragorn training in Codespaces (works with Ubuntu 24.04)
 
-echo "🐍 Setting up Python 3.10 environment..."
+echo "🐍 Setting up Python environment..."
+
+# Use pyenv to install Python 3.10
+echo "📥 Installing pyenv..."
+curl -s https://pyenv.run | bash
+
+# Add pyenv to PATH
+export PATH="$HOME/.pyenv/bin:$PATH"
+eval "$(pyenv init -)"
 
 # Install Python 3.10
-sudo apt-get update
-sudo apt-get install -y python3.10 python3.10-venv python3.10-dev python3-pip
+echo "⬇️ Installing Python 3.10 (this takes a few minutes)..."
+pyenv install 3.10.14
+pyenv global 3.10.14
+
+# Verify
+python3 --version
 
 # Create virtual environment
-python3.10 -m venv ~/wakeword-venv
+echo "📦 Creating virtual environment..."
+python3 -m venv ~/wakeword-venv
 source ~/wakeword-venv/bin/activate
 
 # Install dependencies
@@ -17,15 +30,20 @@ pip install --quiet tensorflow==2.16.1 numpy==1.26.4 pyyaml scipy datasets mmap-
 
 # Install micro-wake-word
 echo "🔧 Installing micro-wake-word..."
-git clone https://github.com/kahrendt/microWakeWord.git ~/microWakeWord 2>/dev/null || true
+if [ ! -d "$HOME/microWakeWord" ]; then
+    git clone https://github.com/kahrendt/microWakeWord.git ~/microWakeWord
+fi
 pip install --quiet -e ~/microWakeWord
 
 # Clone piper-sample-generator
-git clone https://github.com/rhasspy/piper-sample-generator.git ~/piper-sample-generator 2>/dev/null || true
+if [ ! -d "$HOME/piper-sample-generator" ]; then
+    git clone https://github.com/rhasspy/piper-sample-generator.git ~/piper-sample-generator
+fi
 
 # Install kernel for Jupyter
 python3 -m ipykernel install --user --name=wakeword --display-name "Python 3.10 (Wakeword)"
 
+echo ""
 echo "✅ Setup complete!"
 echo ""
 echo "📝 To use this environment:"
