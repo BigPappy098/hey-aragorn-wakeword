@@ -13,6 +13,7 @@ pip uninstall -y jax jaxlib tensorstore tensorflow-decision-forests tensorflow-t
 
 echo "=== Installing Python packages ==="
 pip install piper-tts
+pip install torch --index-url https://download.pytorch.org/whl/cu124
 pip install protobuf==4.25.3 ml-dtypes==0.4.0
 pip install onnxruntime pyyaml datasets mmap-ninja tqdm audiomentations \
   webrtcvad-wheels huggingface_hub
