@@ -1,0 +1,226 @@
+Cloning into 'microWakeWord'...
+WARNING: Running pip as the 'root' user can result in broken permissions and conflicting behaviour with the system package manager, possibly rendering your system unusable.It is recommended to use a virtual environment instead: https://pip.pypa.io/warnings/venv. Use the --root-user-action option if you know what you are doing and want to suppress this warning.
+
+[notice] A new release of pip is available: 24.2 -> 26.0.1
+[notice] To update, run: python -m pip install --upgrade pip
+DEBUG:__main__:Loading piper-sample-generator/models/en_US-libritts_r-medium.pt
+INFO:__main__:Successfully loaded the model
+DEBUG:__main__:CUDA available, using GPU
+DEBUG:__main__:Batch 1/10 complete
+DEBUG:__main__:Batch 2/10 complete
+DEBUG:__main__:Batch 3/10 complete
+DEBUG:__main__:Batch 4/10 complete
+DEBUG:__main__:Batch 5/10 complete
+DEBUG:__main__:Batch 6/10 complete
+DEBUG:__main__:Batch 7/10 complete
+DEBUG:__main__:Batch 8/10 complete
+DEBUG:__main__:Batch 9/10 complete
+DEBUG:__main__:Batch 10/10 complete
+INFO:__main__:Done
+2026-03-14 21:52:28.910801: E external/local_xla/xla/stream_executor/cuda/cuda_fft.cc:477] Unable to register cuFFT factory: Attempting to register factory for plugin cuFFT when one has already been registered
+WARNING: All log messages before absl::InitializeLog() is called are written to STDERR
+E0000 00:00:1773525148.928775    5987 cuda_dnn.cc:8310] Unable to register cuDNN factory: Attempting to register factory for plugin cuDNN when one has already been registered
+E0000 00:00:1773525148.933789    5987 cuda_blas.cc:1418] Unable to register cuBLAS factory: Attempting to register factory for plugin cuBLAS when one has already been registered
+2026-03-14 21:52:28.951960: I tensorflow/core/platform/cpu_feature_guard.cc:210] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
+To enable the following instructions: AVX2 FMA, in other operations, rebuild TensorFlow with the appropriate compiler flags.
+
+[Step 3] Cloning microWakeWord + piper-sample-generator...
+✅ Repos ready
+
+[Step 4] Downloading Piper model...
+✅ Piper model ready
+
+[Step 7] Generating 1000 samples for 'hey_air_uh_gorn'...
+✅ 1000 samples generated
+
+[Step 8] Downloading RIRs + background noise (~1.3 GB)...
+✅ Augmentation data ready
+
+[Step 9] Generating spectrograms...
+0it [00:00, ?it/s]1it [00:01,  1.28s/it]100it [00:02, 41.18it/s]200it [00:02, 93.96it/s]311it [00:03, 167.55it/s]431it [00:03, 264.35it/s]517it [00:04, 140.97it/s]631it [00:04, 207.06it/s]721it [00:04, 266.55it/s]801it [00:04, 302.27it/s]900it [00:06, 158.44it/s]1000it [00:06, 214.80it/s]1111it [00:06, 294.12it/s]1231it [00:06, 393.16it/s]1351it [00:06, 495.96it/s]1461it [00:06, 582.87it/s]1557it [00:08, 184.18it/s]1626it [00:13, 47.28it/s] 1700it [00:14, 51.00it/s]1800it [00:15, 60.45it/s]1891it [00:15, 83.64it/s]1951it [00:15, 102.90it/s]2001it [00:15, 122.44it/s]2121it [00:15, 194.74it/s]2200it [00:16, 220.91it/s]2311it [00:16, 308.47it/s]2461it [00:16, 455.83it/s]2600it [00:16, 592.95it/s]2706it [00:17, 254.69it/s]2800it [00:17, 260.58it/s]2891it [00:17, 319.48it/s]2961it [00:19, 132.87it/s]3081it [00:19, 193.17it/s]3200it [00:19, 266.90it/s]3281it [00:19, 319.04it/s]3362it [00:21, 158.25it/s]3421it [00:21, 180.31it/s]3541it [00:21, 266.01it/s]3671it [00:21, 372.51it/s]3791it [00:21, 480.76it/s]3886it [00:23, 160.42it/s]3954it [00:24, 109.20it/s]4003it [00:26, 72.40it/s] 4100it [00:27, 82.69it/s]4200it [00:28, 76.51it/s]4331it [00:28, 119.72it/s]4461it [00:28, 175.88it/s]4561it [00:28, 227.78it/s]4642it [00:30, 132.08it/s]4701it [00:32, 83.55it/s] 4800it [00:33, 72.97it/s]4900it [00:35, 69.41it/s]5000it [00:37, 64.74it/s]5100it [00:38, 61.97it/s]5191it [00:39, 84.51it/s]5228it [00:40, 68.16it/s]5311it [00:40, 95.74it/s]5461it [00:40, 164.80it/s]5591it [00:40, 238.18it/s]5721it [00:40, 327.83it/s]5821it [00:41, 230.72it/s]5900it [00:41, 270.40it/s]6021it [00:41, 366.14it/s]6171it [00:41, 507.72it/s]6281it [00:41, 594.24it/s]6400it [00:42, 306.57it/s]6481it [00:42, 357.15it/s]6611it [00:42, 473.49it/s]6741it [00:42, 595.13it/s]6851it [00:43, 681.25it/s]6955it [00:43, 734.22it/s]7056it [00:43, 334.26it/s]7131it [00:44, 362.47it/s]7271it [00:44, 501.57it/s]7401it [00:44, 626.99it/s]7501it [00:44, 687.59it/s]7600it [00:45, 316.88it/s]7673it [00:45, 361.52it/s]7781it [00:45, 253.35it/s]7836it [00:46, 266.98it/s]7951it [00:46, 362.15it/s]8071it [00:46, 475.52it/s]8200it [00:46, 602.83it/s]8311it [00:46, 691.12it/s]8407it [00:47, 294.00it/s]8491it [00:47, 350.88it/s]8611it [00:47, 460.71it/s]8741it [00:47, 581.20it/s]8851it [00:47, 664.77it/s]8981it [00:47, 792.76it/s]9088it [00:48, 319.53it/s]9200it [00:48, 401.04it/s]9351it [00:48, 543.87it/s]9461it [00:49, 628.72it/s]9591it [00:49, 741.64it/s]9701it [00:50, 312.73it/s]9831it [00:50, 407.51it/s]9951it [00:50, 504.10it/s]10051it [00:50, 571.40it/s]10148it [00:51, 264.90it/s]10251it [00:51, 335.19it/s]10371it [00:51, 434.17it/s]10491it [00:51, 541.86it/s]10621it [00:51, 663.14it/s]10727it [00:52, 220.69it/s]10841it [00:53, 289.47it/s]10971it [00:53, 387.93it/s]11091it [00:53, 486.50it/s]11196it [00:54, 203.56it/s]11272it [00:56, 95.02it/s] 11381it [00:57, 132.54it/s]11500it [00:58, 119.81it/s]11552it [00:58, 137.65it/s]11681it [00:58, 206.82it/s]11801it [00:58, 284.84it/s]11901it [00:58, 355.83it/s]12031it [00:58, 474.73it/s]12133it [00:59, 238.84it/s]12208it [01:00, 193.64it/s]12300it [01:01, 160.62it/s]12351it [01:01, 183.37it/s]12400it [01:02, 125.12it/s]12491it [01:02, 177.87it/s]12571it [01:02, 227.88it/s]12661it [01:02, 300.73it/s]12800it [01:02, 447.72it/s]12900it [01:03, 219.44it/s]13000it [01:03, 285.51it/s]13111it [01:03, 374.44it/s]13261it [01:03, 522.36it/s]13400it [01:03, 654.17it/s]13511it [01:04, 736.26it/s]13621it [01:05, 289.61it/s]13771it [01:05, 403.73it/s]13900it [01:05, 506.39it/s]14006it [01:05, 557.66it/s]14104it [01:06, 266.44it/s]14211it [01:06, 338.83it/s]14321it [01:06, 425.76it/s]14471it [01:06, 574.37it/s]14600it [01:06, 686.90it/s]14711it [01:07, 279.31it/s]14800it [01:08, 278.52it/s]14901it [01:08, 347.51it/s]15001it [01:08, 424.90it/s]15100it [01:09, 234.28it/s]15181it [01:09, 284.07it/s]15300it [01:09, 382.69it/s]15421it [01:09, 495.47it/s]15531it [01:09, 581.64it/s]15641it [01:09, 671.67it/s]15791it [01:09, 839.98it/s]15903it [01:10, 310.41it/s]16000it [01:10, 225.93it/s]
+2026-03-14 21:53:42.683811: E external/local_xla/xla/stream_executor/cuda/cuda_fft.cc:477] Unable to register cuFFT factory: Attempting to register factory for plugin cuFFT when one has already been registered
+WARNING: All log messages before absl::InitializeLog() is called are written to STDERR
+E0000 00:00:1773525222.700197    6248 cuda_dnn.cc:8310] Unable to register cuDNN factory: Attempting to register factory for plugin cuDNN when one has already been registered
+E0000 00:00:1773525222.705251    6248 cuda_blas.cc:1418] Unable to register cuBLAS factory: Attempting to register factory for plugin cuBLAS when one has already been registered
+INFO:absl:Loading and analyzing data sets.
+I0000 00:00:1773525243.726596    6248 gpu_device.cc:2022] Created device /job:localhost/replica:0/task:0/device:GPU:0 with 22161 MB memory:  -> device: 0, name: NVIDIA GeForce RTX 4090, pci bus id: 0000:c1:00.0, compute capability: 8.9
+WARNING:absl:ring_buffer_size_in_time_dim overwritten by the passed-in value: 4
+WARNING:absl:ring_buffer_size_in_time_dim overwritten by the passed-in value: 10
+WARNING:absl:ring_buffer_size_in_time_dim overwritten by the passed-in value: 14
+WARNING:absl:ring_buffer_size_in_time_dim overwritten by the passed-in value: 22
+WARNING:absl:ring_buffer_size_in_time_dim overwritten by the passed-in value: 16
+Model: "functional"
+┏━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━┓
+┃ Layer (type)        ┃ Output Shape      ┃    Param # ┃ Connected to      ┃
+┡━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━┩
+│ input_layer         │ (128, 204, 40)    │          0 │ -                 │
+│ (InputLayer)        │                   │            │                   │
+├─────────────────────┼───────────────────┼────────────┼───────────────────┤
+│ expand_dims         │ (128, 204, 1, 40) │          0 │ input_layer[0][0] │
+│ (ExpandDims)        │                   │            │                   │
+├─────────────────────┼───────────────────┼────────────┼───────────────────┤
+│ stream (Stream)     │ (128, 67, 1, 32)  │      6,400 │ expand_dims[0][0] │
+├─────────────────────┼───────────────────┼────────────┼───────────────────┤
+│ activation          │ (128, 67, 1, 32)  │          0 │ stream[0][0]      │
+│ (Activation)        │                   │            │                   │
+├─────────────────────┼───────────────────┼────────────┼───────────────────┤
+│ stream_1 (Stream)   │ (128, 67, 1, 32)  │          0 │ activation[0][0]  │
+├─────────────────────┼───────────────────┼────────────┼───────────────────┤
+│ depthwise_conv2d    │ (128, 63, 1, 32)  │        192 │ stream_1[0][0]    │
+│ (DepthwiseConv2D)   │                   │            │                   │
+├─────────────────────┼───────────────────┼────────────┼───────────────────┤
+│ conv2d_1 (Conv2D)   │ (128, 63, 1, 64)  │      2,048 │ depthwise_conv2d… │
+├─────────────────────┼───────────────────┼────────────┼───────────────────┤
+│ batch_normalization │ (128, 63, 1, 64)  │        256 │ conv2d_1[0][0]    │
+│ (BatchNormalizatio… │                   │            │                   │
+├─────────────────────┼───────────────────┼────────────┼───────────────────┤
+│ activation_1        │ (128, 63, 1, 64)  │          0 │ batch_normalizat… │
+│ (Activation)        │                   │            │                   │
+├─────────────────────┼───────────────────┼────────────┼───────────────────┤
+│ stream_2 (Stream)   │ (128, 63, 1, 64)  │          0 │ activation_1[0][… │
+├─────────────────────┼───────────────────┼────────────┼───────────────────┤
+│ channel_split       │ [(128, 63, 1,     │          0 │ stream_2[0][0]    │
+│ (ChannelSplit)      │ 32), (128, 63, 1, │            │                   │
+│                     │ 32)]              │            │                   │
+├─────────────────────┼───────────────────┼────────────┼───────────────────┤
+│ strided_keep        │ (128, 63, 1, 32)  │          0 │ channel_split[0]… │
+│ (StridedKeep)       │                   │            │                   │
+├─────────────────────┼───────────────────┼────────────┼───────────────────┤
+│ strided_keep_1      │ (128, 63, 1, 32)  │          0 │ channel_split[0]… │
+│ (StridedKeep)       │                   │            │                   │
+├─────────────────────┼───────────────────┼────────────┼───────────────────┤
+│ depthwise_conv2d_1  │ (128, 57, 1, 32)  │        256 │ strided_keep[0][… │
+│ (DepthwiseConv2D)   │                   │            │                   │
+├─────────────────────┼───────────────────┼────────────┼───────────────────┤
+│ depthwise_conv2d_2  │ (128, 53, 1, 32)  │        384 │ strided_keep_1[0… │
+│ (DepthwiseConv2D)   │                   │            │                   │
+├─────────────────────┼───────────────────┼────────────┼───────────────────┤
+│ strided_drop        │ (128, 53, 1, 32)  │          0 │ depthwise_conv2d… │
+│ (StridedDrop)       │                   │            │                   │
+├─────────────────────┼───────────────────┼────────────┼───────────────────┤
+│ strided_drop_1      │ (128, 53, 1, 32)  │          0 │ depthwise_conv2d… │
+│ (StridedDrop)       │                   │            │                   │
+├─────────────────────┼───────────────────┼────────────┼───────────────────┤
+│ concatenate         │ (128, 53, 1, 64)  │          0 │ strided_drop[0][… │
+│ (Concatenate)       │                   │            │ strided_drop_1[0… │
+├─────────────────────┼───────────────────┼────────────┼───────────────────┤
+│ conv2d_2 (Conv2D)   │ (128, 53, 1, 64)  │      4,096 │ concatenate[0][0] │
+├─────────────────────┼───────────────────┼────────────┼───────────────────┤
+│ batch_normalizatio… │ (128, 53, 1, 64)  │        256 │ conv2d_2[0][0]    │
+│ (BatchNormalizatio… │                   │            │                   │
+├─────────────────────┼───────────────────┼────────────┼───────────────────┤
+│ activation_2        │ (128, 53, 1, 64)  │          0 │ batch_normalizat… │
+│ (Activation)        │                   │            │                   │
+├─────────────────────┼───────────────────┼────────────┼───────────────────┤
+│ stream_3 (Stream)   │ (128, 53, 1, 64)  │          0 │ activation_2[0][… │
+├─────────────────────┼───────────────────┼────────────┼───────────────────┤
+│ channel_split_1     │ [(128, 53, 1,     │          0 │ stream_3[0][0]    │
+│ (ChannelSplit)      │ 32), (128, 53, 1, │            │                   │
+│                     │ 32)]              │            │                   │
+├─────────────────────┼───────────────────┼────────────┼───────────────────┤
+│ strided_keep_2      │ (128, 53, 1, 32)  │          0 │ channel_split_1[… │
+│ (StridedKeep)       │                   │            │                   │
+├─────────────────────┼───────────────────┼────────────┼───────────────────┤
+│ strided_keep_3      │ (128, 53, 1, 32)  │          0 │ channel_split_1[… │
+│ (StridedKeep)       │                   │            │                   │
+├─────────────────────┼───────────────────┼────────────┼───────────────────┤
+│ depthwise_conv2d_3  │ (128, 45, 1, 32)  │        320 │ strided_keep_2[0… │
+│ (DepthwiseConv2D)   │                   │            │                   │
+├─────────────────────┼───────────────────┼────────────┼───────────────────┤
+│ depthwise_conv2d_4  │ (128, 39, 1, 32)  │        512 │ strided_keep_3[0… │
+│ (DepthwiseConv2D)   │                   │            │                   │
+├─────────────────────┼───────────────────┼────────────┼───────────────────┤
+│ strided_drop_2      │ (128, 39, 1, 32)  │          0 │ depthwise_conv2d… │
+│ (StridedDrop)       │                   │            │                   │
+├─────────────────────┼───────────────────┼────────────┼───────────────────┤
+│ strided_drop_3      │ (128, 39, 1, 32)  │          0 │ depthwise_conv2d… │
+│ (StridedDrop)       │                   │            │                   │
+├─────────────────────┼───────────────────┼────────────┼───────────────────┤
+│ concatenate_1       │ (128, 39, 1, 64)  │          0 │ strided_drop_2[0… │
+│ (Concatenate)       │                   │            │ strided_drop_3[0… │
+├─────────────────────┼───────────────────┼────────────┼───────────────────┤
+│ conv2d_3 (Conv2D)   │ (128, 39, 1, 64)  │      4,096 │ concatenate_1[0]… │
+├─────────────────────┼───────────────────┼────────────┼───────────────────┤
+│ batch_normalizatio… │ (128, 39, 1, 64)  │        256 │ conv2d_3[0][0]    │
+│ (BatchNormalizatio… │                   │            │                   │
+├─────────────────────┼───────────────────┼────────────┼───────────────────┤
+│ activation_3        │ (128, 39, 1, 64)  │          0 │ batch_normalizat… │
+│ (Activation)        │                   │            │                   │
+├─────────────────────┼───────────────────┼────────────┼───────────────────┤
+│ stream_4 (Stream)   │ (128, 39, 1, 64)  │          0 │ activation_3[0][… │
+├─────────────────────┼───────────────────┼────────────┼───────────────────┤
+│ depthwise_conv2d_5  │ (128, 17, 1, 64)  │      1,536 │ stream_4[0][0]    │
+│ (DepthwiseConv2D)   │                   │            │                   │
+├─────────────────────┼───────────────────┼────────────┼───────────────────┤
+│ conv2d_4 (Conv2D)   │ (128, 17, 1, 64)  │      4,096 │ depthwise_conv2d… │
+├─────────────────────┼───────────────────┼────────────┼───────────────────┤
+│ batch_normalizatio… │ (128, 17, 1, 64)  │        256 │ conv2d_4[0][0]    │
+│ (BatchNormalizatio… │                   │            │                   │
+├─────────────────────┼───────────────────┼────────────┼───────────────────┤
+│ activation_4        │ (128, 17, 1, 64)  │          0 │ batch_normalizat… │
+│ (Activation)        │                   │            │                   │
+├─────────────────────┼───────────────────┼────────────┼───────────────────┤
+│ stream_5 (Stream)   │ (128, 17, 1, 64)  │          0 │ activation_4[0][… │
+├─────────────────────┼───────────────────┼────────────┼───────────────────┤
+│ flatten (Flatten)   │ (128, 1088)       │          0 │ stream_5[0][0]    │
+├─────────────────────┼───────────────────┼────────────┼───────────────────┤
+│ dense (Dense)       │ (128, 1)          │      1,089 │ flatten[0][0]     │
+└─────────────────────┴───────────────────┴────────────┴───────────────────┘
+ Total params: 26,049 (101.75 KB)
+ Trainable params: 25,537 (99.75 KB)
+ Non-trainable params: 512 (2.00 KB)
+INFO:absl:None
+WARNING: All log messages before absl::InitializeLog() is called are written to STDERR
+I0000 00:00:1773525246.941140    6248 service.cc:148] XLA service 0x16a7e780 initialized for platform CUDA (this does not guarantee that XLA will be used). Devices:
+I0000 00:00:1773525246.941171    6248 service.cc:156]   StreamExecutor device (0): NVIDIA GeForce RTX 4090, Compute Capability 8.9
+E0000 00:00:1773525247.344854    6248 cuda_dnn.cc:522] Loaded runtime CuDNN library: 9.1.0 but source was compiled with: 9.3.0.  CuDNN library needs to have matching major version and equal or higher minor version. If using a binary install, upgrade your CuDNN library.  If building from sources, make sure the library loaded at runtime is compatible with the version specified during compile configuration.
+E0000 00:00:1773525247.437258    6248 cuda_dnn.cc:522] Loaded runtime CuDNN library: 9.1.0 but source was compiled with: 9.3.0.  CuDNN library needs to have matching major version and equal or higher minor version. If using a binary install, upgrade your CuDNN library.  If building from sources, make sure the library loaded at runtime is compatible with the version specified during compile configuration.
+Traceback (most recent call last):
+  File "<frozen runpy>", line 198, in _run_module_as_main
+  File "<frozen runpy>", line 88, in _run_code
+  File "/workspace/training/microWakeWord/microwakeword/model_train_eval.py", line 409, in <module>
+    train_model(config, model, data_processor, flags.restore_checkpoint)
+  File "/workspace/training/microWakeWord/microwakeword/model_train_eval.py", line 128, in train_model
+    train.train(model, config, data_processor)
+  File "/workspace/training/microWakeWord/microwakeword/train.py", line 295, in train
+    result = model.train_on_batch(
+             ^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.11/dist-packages/keras/src/backend/tensorflow/trainer.py", line 549, in train_on_batch
+    logs = self.train_function(data())
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.11/dist-packages/tensorflow/python/autograph/impl/api.py", line 643, in wrapper
+    return func(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.11/dist-packages/keras/src/backend/tensorflow/trainer.py", line 121, in one_step_on_iterator
+    outputs = self.distribute_strategy.run(
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.11/dist-packages/tensorflow/python/distribute/distribute_lib.py", line 1673, in run
+    return self._extended.call_for_each_replica(fn, args=args, kwargs=kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.11/dist-packages/tensorflow/python/distribute/distribute_lib.py", line 3263, in call_for_each_replica
+    return self._call_for_each_replica(fn, args, kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.11/dist-packages/tensorflow/python/distribute/distribute_lib.py", line 4061, in _call_for_each_replica
+    return fn(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.11/dist-packages/tensorflow/python/util/traceback_utils.py", line 153, in error_handler
+    raise e.with_traceback(filtered_tb) from None
+  File "/usr/local/lib/python3.11/dist-packages/tensorflow/python/eager/execute.py", line 53, in quick_execute
+    tensors = pywrap_tfe.TFE_Py_Execute(ctx._handle, device_name, op_name,
+  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+tensorflow.python.framework.errors_impl.FailedPreconditionError: DNN library initialization failed. Look at the errors above for more details. [Op:__inference_one_step_on_data_6492]
+✅ 16000 spectrograms saved
+
+[Step 10] Downloading negative datasets...
+✅ Negative datasets ready
+
+[Step 11] Writing training config...
+✅ Config written
+
+[Step 12] Training (~1 hour)...
+❌ Training failed:
+Traceback (most recent call last):
+  File "/workspace/training/train.py", line 193, in <module>
+    print(result.stderr[-4000:])
+          ~~~~~~~~~~~~~^^^^^^^^
+TypeError: 'NoneType' object is not subscriptable
