@@ -15,7 +15,7 @@ echo "=== Installing Python packages ==="
 pip install piper-tts
 pip install torch --index-url https://download.pytorch.org/whl/cu124
 pip install protobuf==4.25.3 ml-dtypes==0.4.0
-pip install onnxruntime pyyaml datasets mmap-ninja tqdm audiomentations \
+pip install onnxruntime pyyaml datasets==2.20.0 mmap-ninja tqdm audiomentations \
   webrtcvad-wheels huggingface_hub
 
 echo "=== Installing cuDNN 9 for TF 2.18.0 ==="
