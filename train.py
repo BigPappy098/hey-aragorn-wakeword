@@ -184,19 +184,39 @@ subprocess.run(['git', 'clone', 'https://github.com/kahrendt/microWakeWord.git']
 subprocess.run([sys.executable, '-m', 'pip', 'install', '-q', '-e', 'microWakeWord'],
                check=True)
 
-# Patch: make validate_nonstreaming failures non-fatal
-patch_lines = [
-    'from collections import defaultdict as _defaultdict\n',
-    '_orig_validate_nonstreaming = validate_nonstreaming\n',
-    'def validate_nonstreaming(*args, **kwargs):\n',
-    '    try:\n',
-    '        return _orig_validate_nonstreaming(*args, **kwargs)\n',
-    '    except Exception as _e:\n',
-    '        print(f" [validate_nonstreaming skipped: {type(_e).__name__}]")\n',
-    '        return _defaultdict(float)\n',
-]
-with open('microWakeWord/microwakeword/train.py', 'a') as f:
-    f.writelines(patch_lines)
+# Patch: fix validate_nonstreaming for Keras 3 compatibility.
+# In Keras 3, model.evaluate() returns a list, not a dict.
+# We wrap it to always return {metric_name: value} so train.py's
+# dict indexing works correctly and validation metrics are non-zero.
+CUT_MARKER = '\n# === TRAIN.PY PATCH ==='
+_train_py_path = 'microWakeWord/microwakeword/train.py'
+with open(_train_py_path, 'r') as f:
+    _src = f.read()
+if CUT_MARKER in _src:
+    _src = _src[:_src.index(CUT_MARKER)]
+
+_patch = CUT_MARKER + '''
+
+_orig_validate_nonstreaming = validate_nonstreaming
+
+def validate_nonstreaming(config, data_processor, model, test_set):
+    _real_evaluate = model.evaluate
+    def _evaluate_as_dict(*a, **kw):
+        kw.setdefault('return_dict', True)
+        result = _real_evaluate(*a, **kw)
+        if isinstance(result, (list, tuple)):
+            names = [m.name for m in model.metrics]
+            result = dict(zip(names, result))
+        return result
+    model.evaluate = _evaluate_as_dict
+    try:
+        return _orig_validate_nonstreaming(config, data_processor, model, test_set)
+    finally:
+        model.evaluate = _real_evaluate
+'''
+
+with open(_train_py_path, 'w') as f:
+    f.write(_src + _patch)
 
 if not os.path.exists('piper-sample-generator'):
     subprocess.run(
