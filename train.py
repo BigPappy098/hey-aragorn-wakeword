@@ -212,7 +212,7 @@ if CUT_MARKER in _src:
 _patch = CUT_MARKER + '''
 import numpy as _np_patch
 
-def _safe_evaluate(model, data, labels, batch_size=1024):
+def _safe_evaluate(model, data, labels, batch_size=128):
     """Call model.evaluate and return a dict with canonical metric names.
 
     Handles Keras 3 naming differences by:
@@ -331,7 +331,7 @@ def validate_nonstreaming(config, data_processor, model, test_set):
     model.reset_metrics()
 
     result = _safe_evaluate(model, testing_fingerprints, testing_ground_truth,
-                            batch_size=1024)
+                            batch_size=batch_size)
 
     metrics = {}
     metrics["accuracy"] = result["accuracy"]
@@ -364,7 +364,7 @@ def validate_nonstreaming(config, data_processor, model, test_set):
         with swap_attribute(model, "reset_metrics", lambda: None):
             ambient_result = _safe_evaluate(
                 model, ambient_testing_fingerprints,
-                ambient_testing_ground_truth, batch_size=1024
+                ambient_testing_ground_truth, batch_size=batch_size
             )
 
         duration_of_ambient_set = (
