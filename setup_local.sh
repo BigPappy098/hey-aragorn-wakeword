@@ -41,13 +41,25 @@ fi
 
 REPO_DIR="$(cd "$(dirname "$0")" && pwd)"
 
+# ── .env file ───────────────────────────────────────────────────────────────
+ENV_FILE="$REPO_DIR/.env"
+if [ ! -f "$ENV_FILE" ]; then
+    cp "$REPO_DIR/.env.example" "$ENV_FILE"
+    sed -i "s|^WORK_DIR=.*|WORK_DIR=$WORK_DIR|" "$ENV_FILE"
+    echo ""
+    echo "Created .env from template. Edit it to add your GitHub credentials:"
+    echo "  $ENV_FILE"
+fi
+
 echo ""
 echo "============================================"
 echo "  Setup complete!"
 echo "============================================"
 echo ""
-echo "To train:"
-echo "  source $WORK_DIR/venv/bin/activate"
-echo "  cd $REPO_DIR"
-echo "  WORK_DIR=$WORK_DIR python3 train.py"
+echo "Next steps:"
+echo "  1. Edit .env to add GITHUB_TOKEN and GITHUB_REPO (optional)"
+echo "  2. Run:"
+echo "       source $WORK_DIR/venv/bin/activate"
+echo "       cd $REPO_DIR"
+echo "       python3 train.py"
 echo ""

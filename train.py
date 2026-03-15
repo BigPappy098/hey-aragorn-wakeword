@@ -70,6 +70,18 @@ if _cudnn_lib and _os.path.isdir(_cudnn_lib):
 else:
     print("[init] WARNING: No cuDNN 9.3 path available. Training may fail.")
 
+# ── Load .env file if present (for non-RunPod setups) ────────────────────────
+_env_file = _os.path.join(_os.path.dirname(_os.path.abspath(__file__)), '.env')
+if _os.path.isfile(_env_file):
+    with open(_env_file) as _f:
+        for _line in _f:
+            _line = _line.strip()
+            if _line and not _line.startswith('#') and '=' in _line:
+                _key, _, _val = _line.partition('=')
+                _key, _val = _key.strip(), _val.strip()
+                if _key and _key not in _os.environ:  # don't override explicit env vars
+                    _os.environ[_key] = _os.path.expanduser(_val)
+
 # ── Normal imports ────────────────────────────────────────────────────────────
 import os, sys, shutil, yaml, urllib.request, zipfile, json
 import numpy as np
