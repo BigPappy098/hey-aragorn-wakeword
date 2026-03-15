@@ -100,7 +100,7 @@ def prompt(msg, default=None, valid_fn=None):
 
 
 def git_configure():
-    """Idempotent git identity + remote setup."""
+    """Idempotent git identity + remote setup.  Clones the repo if needed."""
     subprocess.run(['git', 'config', '--global', 'safe.directory', '*'],
                    check=True, capture_output=True)
     subprocess.run(['git', 'config', '--global', 'user.email', 'runpod@training.bot'],
@@ -109,9 +109,17 @@ def git_configure():
                    check=True, capture_output=True)
     subprocess.run(['git', 'config', '--global', 'pull.rebase', 'false'],
                    check=True, capture_output=True)
-    if GITHUB_TOKEN and GITHUB_REPO:
-        subprocess.run(['git', 'remote', 'set-url', 'origin',
-                        f'https://{GITHUB_TOKEN}@github.com/{GITHUB_REPO}.git'],
+    if not GITHUB_TOKEN or not GITHUB_REPO:
+        return
+    repo_url = f'https://{GITHUB_TOKEN}@github.com/{GITHUB_REPO}.git'
+    # If REPO_ROOT isn't a git repo yet, clone into it
+    if not os.path.isdir(os.path.join(REPO_ROOT, '.git')):
+        print(f"[git] Repo not found at {REPO_ROOT}, cloning...")
+        os.makedirs(REPO_ROOT, exist_ok=True)
+        subprocess.run(['git', 'clone', repo_url, REPO_ROOT],
+                       check=True)
+    else:
+        subprocess.run(['git', 'remote', 'set-url', 'origin', repo_url],
                        check=True, capture_output=True, cwd=REPO_ROOT)
 
 import subprocess                       # re-import at module scope for clarity
