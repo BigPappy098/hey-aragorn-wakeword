@@ -209,18 +209,41 @@ if CUT_MARKER in _src:
     _src = _src[:_src.index(CUT_MARKER)]
 
 _patch = CUT_MARKER + '''
+import numpy as _np_patch
 
 _orig_validate_nonstreaming = validate_nonstreaming
 
 def validate_nonstreaming(config, data_processor, model, test_set):
+    """Patched validate_nonstreaming that fixes batch_size and return_dict issues."""
     _real_evaluate = model.evaluate
+
+    # Get the model's fixed batch size from its input shape
+    _model_batch = model.input_shape[0]  # e.g. 128
+
     def _evaluate_as_dict(*a, **kw):
-        kw.setdefault('return_dict', True)
+        kw.setdefault("return_dict", True)
+        # Force batch_size to match the model's fixed input batch dimension
+        kw["batch_size"] = _model_batch
+
+        # Pad the input data to be a multiple of _model_batch
+        data = a[0] if len(a) > 0 else kw.get("x")
+        labels = a[1] if len(a) > 1 else kw.get("y")
+        if data is not None and hasattr(data, "shape"):
+            n = data.shape[0]
+            remainder = n % _model_batch
+            if remainder != 0:
+                pad_n = _model_batch - remainder
+                data = _np_patch.concatenate([data, _np_patch.zeros((_model_batch,) + data.shape[1:], dtype=data.dtype)[:pad_n]])
+                if labels is not None and hasattr(labels, "shape"):
+                    labels = _np_patch.concatenate([labels, _np_patch.zeros((_model_batch,) + labels.shape[1:], dtype=labels.dtype)[:pad_n]])
+            a = (data, labels) + a[2:]
+
         result = _real_evaluate(*a, **kw)
         if isinstance(result, (list, tuple)):
             names = [m.name for m in model.metrics]
             result = dict(zip(names, result))
         return result
+
     model.evaluate = _evaluate_as_dict
     try:
         return _orig_validate_nonstreaming(config, data_processor, model, test_set)
