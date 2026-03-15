@@ -5,18 +5,33 @@
 # The pip-installed nvidia-cudnn-cu12 ships the version TF was compiled against.
 # We must ensure LD_LIBRARY_PATH points there so the *subprocess* (training) also
 # picks it up via the dynamic linker, not the older system-level cuDNN.
-import subprocess as _sp, os as _os, ctypes as _ctypes
+import subprocess as _sp, os as _os, sys as _sys, ctypes as _ctypes
 
+# Step A: Ensure nvidia-cudnn-cu12 >= 9.3 is installed (TF 2.18 requires it)
+_REQUIRED_CUDNN = '9.3'
+_cudnn_lib = None
+try:
+    _ver = _sp.check_output(
+        [_sys.executable, '-c',
+         'from importlib.metadata import version; print(version("nvidia-cudnn-cu12"))'],
+        text=True, timeout=30).strip()
+    _need_upgrade = tuple(int(x) for x in _ver.split('.')[:2]) < (9, 3)
+except Exception:
+    _need_upgrade = True
+
+if _need_upgrade:
+    print(f"[init] Upgrading nvidia-cudnn-cu12 to >= {_REQUIRED_CUDNN}...")
+    _sp.run([_sys.executable, '-m', 'pip', 'install', '-q',
+             f'nvidia-cudnn-cu12>={_REQUIRED_CUDNN},<10'], check=True)
+
+# Step B: Set LD_LIBRARY_PATH and preload correct cuDNN into current process
 try:
     _cudnn_lib = _sp.check_output(
-        ['python3', '-c',
+        [_sys.executable, '-c',
          'import nvidia.cudnn, os; print(os.path.dirname(nvidia.cudnn.__file__))'],
         text=True, timeout=30).strip() + '/lib'
-    # Prepend so it takes priority over any system cuDNN
     _os.environ['LD_LIBRARY_PATH'] = \
         f"{_cudnn_lib}:{_os.environ.get('LD_LIBRARY_PATH', '')}"
-    # Also force-load the correct libcudnn into the current process so that even
-    # in-process TF/Keras imports (spectrogram step) get the right version.
     for _f in sorted(_os.listdir(_cudnn_lib)):
         if _f.startswith('libcudnn') and '.so' in _f:
             try:
@@ -498,6 +513,8 @@ train_env = {
     'TF_FORCE_GPU_ALLOW_GROWTH': 'true',
     'TF_CPP_MIN_LOG_LEVEL': '2',
 }
+if _cudnn_lib:
+    train_env['LD_LIBRARY_PATH'] = f"{_cudnn_lib}:{os.environ.get('LD_LIBRARY_PATH', '')}"
 
 # Verify cuDNN availability before launching the long training run
 print("[Step 12] Verifying cuDNN version in subprocess...")
@@ -506,18 +523,26 @@ cudnn_check = subprocess.run(
 import os, ctypes, glob
 ld = os.environ.get("LD_LIBRARY_PATH", "")
 print(f"LD_LIBRARY_PATH = {ld}")
-# Try to find and report cudnn version
 for p in ld.split(":"):
     libs = glob.glob(os.path.join(p, "libcudnn*.so*"))
     if libs:
         print(f"  cuDNN libs in {p}: {[os.path.basename(l) for l in libs[:5]]}")
+# Check actual cuDNN runtime version
+try:
+    libcudnn = ctypes.CDLL("libcudnn.so.9")
+    ver = libcudnn.cudnnGetVersion()
+    major, minor, patch = ver // 10000, (ver % 10000) // 100, ver % 100
+    print(f"cuDNN runtime version: {major}.{minor}.{patch}")
+    if (major, minor) < (9, 3):
+        print(f"CUDNN_TOO_OLD")
+except Exception as e:
+    print(f"cuDNN version check failed: {e}")
 try:
     import tensorflow as tf
     print(f"TF version: {tf.__version__}")
     gpus = tf.config.list_physical_devices("GPU")
     print(f"GPUs visible: {gpus}")
     if gpus:
-        # Quick op to verify GPU actually works
         with tf.device("/GPU:0"):
             a = tf.constant([[1.0, 2.0], [3.0, 4.0]])
             b = tf.constant([[1.0], [1.0]])
@@ -529,10 +554,13 @@ except Exception as e:
     text=True, env=train_env, capture_output=True
 )
 print(cudnn_check.stdout)
+if 'CUDNN_TOO_OLD' in (cudnn_check.stdout or ''):
+    print("ERROR: cuDNN runtime version is < 9.3.0 — TF 2.18 requires >= 9.3.0.")
+    print("       Try: pip install nvidia-cudnn-cu12>=9.3,<10")
+    sys.exit(1)
 if cudnn_check.stderr:
-    # Filter to show only cuDNN-related errors, not noise
     for line in cudnn_check.stderr.splitlines():
-        if 'cudnn' in line.lower() or 'CuDNN' in line or 'cudnn' in line:
+        if 'cudnn' in line.lower() or 'CuDNN' in line:
             print(f"  WARN: {line.strip()}")
 
 result = subprocess.run([
