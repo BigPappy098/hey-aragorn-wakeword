@@ -197,10 +197,11 @@ subprocess.run(['git', 'clone', 'https://github.com/kahrendt/microWakeWord.git']
 subprocess.run([sys.executable, '-m', 'pip', 'install', '-q', '-e', 'microWakeWord'],
                check=True)
 
-# Patch: fix validate_nonstreaming for Keras 3 compatibility.
-# In Keras 3, model.evaluate() returns a list, not a dict.
-# We wrap it to always return {metric_name: value} so train.py's
-# dict indexing works correctly and validation metrics are non-zero.
+# Patch: fix validate_nonstreaming for Keras 3 / TF 2.18 compatibility.
+# In Keras 3, model.evaluate(return_dict=True) may use different metric key
+# names (e.g. "binary_accuracy" instead of "accuracy"). We wrap model.evaluate
+# with _safe_evaluate that tries return_dict, falls back to list+metrics_names,
+# then falls back to index-based access, and normalizes keys via aliases.
 CUT_MARKER = '\n# === TRAIN.PY PATCH ==='
 _train_py_path = 'microWakeWord/microwakeword/train.py'
 with open(_train_py_path, 'r') as f:
@@ -210,70 +211,113 @@ if CUT_MARKER in _src:
 
 _patch = CUT_MARKER + '''
 import numpy as _np_patch
-from sklearn.metrics import roc_auc_score as _roc_auc_score
 
-def _batched_predict(model, data, batch_size):
-    """Get predictions using model.predict in batches that match the fixed batch dim."""
-    all_preds = []
-    n = data.shape[0]
-    for start in range(0, n, batch_size):
-        end = start + batch_size
-        if end > n:
-            pad_n = end - n
-            batch_data = _np_patch.concatenate([data[start:], data[:pad_n]])
-            preds = model.predict(batch_data, verbose=0)
-            all_preds.append(preds[:batch_size - pad_n])
-        else:
-            batch_data = data[start:end]
-            preds = model.predict(batch_data, verbose=0)
-            all_preds.append(preds)
-    return _np_patch.concatenate(all_preds, axis=0)
+def _safe_evaluate(model, data, labels, batch_size=1024):
+    """Call model.evaluate and return a dict with canonical metric names.
 
-def _compute_metrics(predictions, labels, num_thresholds=101):
-    """Compute accuracy, recall, precision, AUC, loss, and per-threshold tp/fp/tn/fn."""
-    labels_flat = labels.flatten()
-    preds_flat = predictions.flatten()
-    # Binary cross-entropy loss
-    eps = 1e-7
-    preds_clipped = _np_patch.clip(preds_flat, eps, 1 - eps)
-    loss = -_np_patch.mean(labels_flat * _np_patch.log(preds_clipped) +
-                           (1 - labels_flat) * _np_patch.log(1 - preds_clipped))
-    # AUC
-    try:
-        auc = _roc_auc_score(labels_flat, preds_flat)
-    except ValueError:
-        auc = 0.0
-    # Per-threshold metrics (matching microWakeWord's 101 thresholds)
-    thresholds = _np_patch.linspace(0.0, 1.0, num_thresholds)
-    tp = _np_patch.zeros(num_thresholds)
-    fp = _np_patch.zeros(num_thresholds)
-    tn = _np_patch.zeros(num_thresholds)
-    fn = _np_patch.zeros(num_thresholds)
-    for i, t in enumerate(thresholds):
-        pred_pos = preds_flat >= t
-        tp[i] = _np_patch.sum(pred_pos & (labels_flat == 1))
-        fp[i] = _np_patch.sum(pred_pos & (labels_flat == 0))
-        tn[i] = _np_patch.sum(~pred_pos & (labels_flat == 0))
-        fn[i] = _np_patch.sum(~pred_pos & (labels_flat == 1))
-    # Metrics at threshold 0.5 (index 50)
-    idx50 = 50
-    accuracy = (tp[idx50] + tn[idx50]) / max(tp[idx50] + tn[idx50] + fp[idx50] + fn[idx50], 1)
-    recall = tp[idx50] / max(tp[idx50] + fn[idx50], 1)
-    precision = tp[idx50] / max(tp[idx50] + fp[idx50], 1)
-    return {
-        "accuracy": float(accuracy),
-        "recall": float(recall),
-        "precision": float(precision),
-        "auc": float(auc),
-        "loss": float(loss),
-        "tp": tp,
-        "fp": fp,
-        "tn": tn,
-        "fn": fn,
+    Handles Keras 3 naming differences by:
+    1. Trying return_dict=True first
+    2. Falling back to list form + metrics_names
+    3. Falling back to index-based access (matching compile order)
+    4. Normalizing key names via aliases
+    """
+    # The model is compiled with metrics in this order:
+    #   [0] loss (from loss fn)
+    #   [1] BinaryAccuracy(name="accuracy")
+    #   [2] Recall(name="recall")
+    #   [3] Precision(name="precision")
+    #   [4] TruePositives(name="tp", thresholds=101)
+    #   [5] FalsePositives(name="fp", thresholds=101)
+    #   [6] TrueNegatives(name="tn", thresholds=101)
+    #   [7] FalseNegatives(name="fn", thresholds=101)
+    #   [8] AUC(name="auc")
+    #   [9] BinaryCrossentropy(name="loss")
+    _INDEX_MAP = {
+        0: "compile_loss", 1: "accuracy", 2: "recall", 3: "precision",
+        4: "tp", 5: "fp", 6: "tn", 7: "fn", 8: "auc", 9: "loss",
+    }
+    _ALIASES = {
+        "accuracy": {"accuracy", "binary_accuracy", "acc"},
+        "loss": {"loss", "binary_crossentropy"},
+        "recall": {"recall", "recall_1"},
+        "precision": {"precision", "precision_1"},
+        "auc": {"auc", "auc_1"},
+        "tp": {"tp", "true_positives", "tp_1"},
+        "fp": {"fp", "false_positives", "fp_1"},
+        "tn": {"tn", "true_negatives", "tn_1"},
+        "fn": {"fn", "false_negatives", "fn_1"},
     }
 
+    # Try return_dict=True first
+    result = None
+    try:
+        result = model.evaluate(data, labels, batch_size=batch_size,
+                                return_dict=True, verbose=0)
+        if not hasattr(_safe_evaluate, "_logged"):
+            print(f"[patch] model.evaluate(return_dict=True) keys: {list(result.keys())}")
+    except Exception as e:
+        if not hasattr(_safe_evaluate, "_logged"):
+            print(f"[patch] return_dict=True failed ({e}), using list form")
+
+    if result is None:
+        # Fall back to list form
+        raw = model.evaluate(data, labels, batch_size=batch_size, verbose=0)
+        if not isinstance(raw, list):
+            raw = [raw]
+        # Try metrics_names first, then index-based
+        try:
+            names = model.metrics_names
+            if not hasattr(_safe_evaluate, "_logged"):
+                print(f"[patch] metrics_names: {names}")
+            result = dict(zip(names, raw))
+        except Exception:
+            if not hasattr(_safe_evaluate, "_logged"):
+                print(f"[patch] Using index-based access, {len(raw)} values")
+            result = {}
+            for idx, canonical in _INDEX_MAP.items():
+                if idx < len(raw):
+                    result[canonical] = raw[idx]
+
+    # Normalize keys: for each canonical name, check if a known alias exists
+    normalized = {}
+    for canonical, aliases in _ALIASES.items():
+        # Check if canonical name already present
+        if canonical in result:
+            val = result[canonical]
+            normalized[canonical] = val.numpy() if hasattr(val, "numpy") else val
+            continue
+        # Check aliases
+        for alias in aliases:
+            if alias in result:
+                val = result[alias]
+                normalized[canonical] = val.numpy() if hasattr(val, "numpy") else val
+                break
+
+    # If we still don't have all keys, try index-based as last resort
+    if len(normalized) < len(_ALIASES):
+        missing = set(_ALIASES.keys()) - set(normalized.keys())
+        if not hasattr(_safe_evaluate, "_logged"):
+            print(f"[patch] Missing after alias lookup: {missing}, trying index fallback")
+        # Re-evaluate with list form if needed
+        try:
+            raw = model.evaluate(data, labels, batch_size=batch_size, verbose=0)
+            if not isinstance(raw, list):
+                raw = [raw]
+            for idx, canonical in _INDEX_MAP.items():
+                if canonical in missing and idx < len(raw):
+                    val = raw[idx]
+                    normalized[canonical] = val.numpy() if hasattr(val, "numpy") else val
+        except Exception:
+            pass
+
+    if not hasattr(_safe_evaluate, "_logged"):
+        print(f"[patch] Final metric keys: {list(normalized.keys())}")
+        _safe_evaluate._logged = True
+
+    return normalized
+
 def validate_nonstreaming(config, data_processor, model, test_set):
-    """Fully replaced validate_nonstreaming — computes metrics from raw predictions."""
+    """Patched validate_nonstreaming — handles Keras 3 metric naming."""
     batch_size = config["batch_size"]
 
     testing_fingerprints, testing_ground_truth, _ = data_processor.get_data(
@@ -284,14 +328,10 @@ def validate_nonstreaming(config, data_processor, model, test_set):
     )
     testing_ground_truth = testing_ground_truth.reshape(-1, 1)
 
-    predictions = _batched_predict(model, testing_fingerprints, batch_size)
-    result = _compute_metrics(predictions, testing_ground_truth)
+    model.reset_metrics()
 
-    if not hasattr(validate_nonstreaming, "_logged"):
-        print(f"[patch] Metrics computed from predictions: acc={result['accuracy']:.4f} "
-              f"rec={result['recall']:.4f} prec={result['precision']:.4f} "
-              f"auc={result['auc']:.4f} loss={result['loss']:.4f}")
-        validate_nonstreaming._logged = True
+    result = _safe_evaluate(model, testing_fingerprints, testing_ground_truth,
+                            batch_size=1024)
 
     metrics = {}
     metrics["accuracy"] = result["accuracy"]
@@ -320,8 +360,12 @@ def validate_nonstreaming(config, data_processor, model, test_set):
         )
         ambient_testing_ground_truth = ambient_testing_ground_truth.reshape(-1, 1)
 
-        ambient_preds = _batched_predict(model, ambient_testing_fingerprints, batch_size)
-        ambient_result = _compute_metrics(ambient_preds, ambient_testing_ground_truth)
+        # Accumulate metrics across both test and ambient sets (don't reset)
+        with swap_attribute(model, "reset_metrics", lambda: None):
+            ambient_result = _safe_evaluate(
+                model, ambient_testing_fingerprints,
+                ambient_testing_ground_truth, batch_size=1024
+            )
 
         duration_of_ambient_set = (
             data_processor.get_mode_duration("validation_ambient") / 3600.0
@@ -335,7 +379,7 @@ def validate_nonstreaming(config, data_processor, model, test_set):
         metrics["loss"] = ambient_result["loss"]
 
         recall_at_cutoffs = (
-            all_true_positives / _np_patch.maximum(all_true_positives + all_false_negatives, 1)
+            all_true_positives / (all_true_positives + all_false_negatives)
         )
         faph_at_cutoffs = ambient_false_positives / duration_of_ambient_set
 
