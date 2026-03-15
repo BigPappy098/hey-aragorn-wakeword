@@ -18,40 +18,41 @@ Traceback (most recent call last):
   File "/usr/lib/python3.13/importlib/metadata/__init__.py", line 409, in from_name
     raise PackageNotFoundError(name)
 importlib.metadata.PackageNotFoundError: No package metadata was found for nvidia-cudnn-cu12
-[init] Installing cuDNN 9.3.0.75 to /usr/local/lib/cudnn-9.3...
 [init] cuDNN 9.3.0 libs ready at: /usr/local/lib/cudnn-9.3/nvidia/cudnn/lib
 [init] cuDNN path set: /usr/local/lib/cudnn-9.3/nvidia/cudnn/lib
 
 === microWakeWord Custom Trainer ===
 
-Enter wake word phonetically (e.g. hey_air_uh_gorn):   → Using: hey_air_uh_gorn
+Enter wake word phonetically (e.g. hey_air_uh_gorn):   → Using: hey_chung_us
 
 Number of voice samples [default: 1000, better quality: 2000-5000]:   → Samples: 1000
 
 Training steps [default: 20000, better quality: 20000-30000]:   → Training steps: 10000
 
 [Cleanup] Removing previous training artifacts...
+  Removed generated_samples/
+  Removed microWakeWord/
 [Cleanup] Done.
 📂 No real recordings found in real_recordings/
 Would you like to upload real recordings to GitHub first? [y/n]: Cloning into 'microWakeWord'...
-Cloning into 'piper-sample-generator'...
 Traceback (most recent call last):
   File "<frozen runpy>", line 198, in _run_module_as_main
   File "<frozen runpy>", line 88, in _run_code
-  File "/root/wakeword-training/piper-sample-generator/piper_sample_generator/__main__.py", line 15, in <module>
-    import torch
-ModuleNotFoundError: No module named 'torch'
+  File "/root/wakeword-training/piper-sample-generator/piper_sample_generator/__main__.py", line 16, in <module>
+    from piper import PiperVoice, SynthesisConfig
+ModuleNotFoundError: No module named 'piper'
 📢 Skipping real recordings — using 100% synthetic samples.
 
 [Step 3] Cloning microWakeWord + piper-sample-generator...
 ✅ Repos ready
+[dep] PyTorch not found — installing CPU-only version...
 
 [Step 4] Downloading Piper model...
 ✅ Piper model ready
 
 [Preview] Generating 1 sample to preview pronunciation...
 Traceback (most recent call last):
-  File "/workspace/training/train.py", line 422, in <module>
+  File "/workspace/training/train.py", line 432, in <module>
     subprocess.run([
     ~~~~~~~~~~~~~~^^
         sys.executable, '-m', 'piper_sample_generator',
@@ -65,4 +66,4 @@ Traceback (most recent call last):
   File "/usr/lib/python3.13/subprocess.py", line 577, in run
     raise CalledProcessError(retcode, process.args,
                              output=stdout, stderr=stderr)
-subprocess.CalledProcessError: Command '['/root/wakeword-training/venv/bin/python3', '-m', 'piper_sample_generator', 'hey_air_uh_gorn', '--max-samples', '1', '--batch-size', '1', '--model', 'piper-sample-generator/models/en_US-libritts_r-medium.pt', '--output-dir', '/tmp/preview_sample']' returned non-zero exit status 1.
+subprocess.CalledProcessError: Command '['/root/wakeword-training/venv/bin/python3', '-m', 'piper_sample_generator', 'hey_chung_us', '--max-samples', '1', '--batch-size', '1', '--model', 'piper-sample-generator/models/en_US-libritts_r-medium.pt', '--output-dir', '/tmp/preview_sample']' returned non-zero exit status 1.
