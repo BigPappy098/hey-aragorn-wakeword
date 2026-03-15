@@ -12,10 +12,10 @@ You provide a phonetic wake word (like `hey_air_uh_gorn`), and this project gene
 |---|---|---|---|
 | **Speed** | ~2 hrs for 20k steps | ~2 hrs (depends on GPU) | Very slow (hours–days) |
 | **Cost** | ~$1–2 per run | Free (your hardware) | Free |
-| **Best for** | No GPU at home | You have an RTX 3090+ | Testing / iterating on config |
+| **Best for** | No GPU at home | You have a dedicated GPU | Testing / iterating on config |
 | **Setup** | RunPod dashboard + SSH | `bash setup_local.sh` | `bash setup_local.sh` |
 
-GPU training requires **20+ GB VRAM** (RTX 3090 or RTX 4090). CPU-only mode works but is extremely slow — useful for verifying your setup or testing small runs.
+Any NVIDIA GPU will speed up training compared to CPU-only. Larger GPUs (20+ GB VRAM like RTX 3090/4090) can use the default batch size of 128. Smaller GPUs (8–12 GB) will work too — TensorFlow automatically adjusts, or you can reduce `batch_size` in the generated `training_parameters.yaml` if you hit out-of-memory errors. CPU-only mode works but is extremely slow — useful for verifying your setup or testing small runs.
 
 ---
 
@@ -50,7 +50,7 @@ The training script pushes your finished model back to your GitHub repo. It need
 | Setting | Value |
 |---|---|
 | Template | `tensorflow/tensorflow:2.18.0-gpu` |
-| GPU | RTX 4090 (recommended) or RTX 3090 |
+| GPU | RTX 4090 (recommended) or any NVIDIA GPU |
 | Volume | 150 GB network volume mounted at `/workspace` |
 
 - Under **Environment Variables** (Edit Pod → Environment Variables), add:
@@ -60,16 +60,28 @@ The training script pushes your finished model back to your GitHub repo. It need
 | `GITHUB_TOKEN` | Your PAT from above (`ghp_...` or `github_pat_...`) |
 | `GITHUB_REPO` | `yourusername/your-repo-name` |
 
-### 2. SSH into the pod and start a tmux session
+### 2. SSH into the pod and install basics
 
 ```bash
 ssh root@<pod-ip> -p <port>
+```
+
+The RunPod TensorFlow template is minimal — update it and install the tools you'll need:
+
+```bash
+apt-get update && apt-get upgrade -y
+apt-get install -y tmux git
+```
+
+### 3. Start a tmux session
+
+```bash
 tmux new-session -s training
 ```
 
 tmux keeps your training running if your SSH connection drops. To detach later: press `Ctrl+B` then `D`. To reattach: `tmux attach -t training`.
 
-### 3. Clone your repo and run setup
+### 4. Clone your repo and run setup
 
 ```bash
 git clone https://github.com/YOURUSERNAME/YOURREPO.git /workspace/training
@@ -81,7 +93,7 @@ python setup.sh
 
 You should see two green checkmarks when setup completes.
 
-### 4. Start training
+### 5. Start training
 
 ```bash
 python train.py 2>&1 | tee training.log
@@ -210,11 +222,12 @@ The model trains automatically. Progress is logged every 500 steps with metrics 
 
 | GPU | Time |
 |---|---|
-| RTX 4090 | ~2 hours |
-| RTX 3090 | ~2–3 hours |
+| RTX 4090 (24 GB) | ~2 hours |
+| RTX 3090 (24 GB) | ~2–3 hours |
+| Smaller GPU (8–12 GB) | ~3–5 hours (may need reduced batch size) |
 | CPU-only | Many hours (not recommended for full runs) |
 
-**Monitoring in a separate terminal:**
+**Logs:** All output is saved to `training.log` in your repo directory (created by the `tee` command above). To monitor from a separate terminal:
 
 ```bash
 tail -f training.log
