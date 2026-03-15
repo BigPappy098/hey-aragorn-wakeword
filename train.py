@@ -128,6 +128,19 @@ GITHUB_TOKEN = os.environ.get('GITHUB_TOKEN', '')
 BASE = '/workspace/training'
 os.chdir(BASE)
 
+# ── Clean up previous training data ──────────────────────────────────────────
+print("[Cleanup] Removing previous training data...")
+for d in ['generated_samples', 'generated_augmented_features', 'negative_datasets',
+          'mit_rirs', 'trained_models', 'microWakeWord', 'piper-sample-generator']:
+    if os.path.exists(d):
+        shutil.rmtree(d)
+        print(f"  Removed {d}/")
+for f in ['training_parameters.yaml']:
+    if os.path.exists(f):
+        os.remove(f)
+        print(f"  Removed {f}")
+print("[Cleanup] Done.")
+
 for d in ['generated_samples', 'mit_rirs', 'negative_datasets', 'models']:
     os.makedirs(d, exist_ok=True)
 
