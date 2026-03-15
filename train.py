@@ -1,9 +1,3 @@
-import subprocess, os as _os
-_cudnn_lib = subprocess.check_output(
-    ['python3', '-c', 'import nvidia.cudnn, os; print(os.path.dirname(nvidia.cudnn.__file__))'],
-    text=True).strip() + '/lib'
-_os.environ['LD_LIBRARY_PATH'] = f"{_cudnn_lib}:{_os.environ.get('LD_LIBRARY_PATH', '')}"
-
 import subprocess, os, sys, shutil, yaml, urllib.request, zipfile, json
 import numpy as np
 
@@ -160,19 +154,18 @@ print(f"\u2705 {synth_count} synthetic samples generated")
 # ── Step 7b: Process + augment real recordings ───────────────────────────────
 if USING_REAL:
     print(f"\n[Step 7b] Processing real recordings \u2192 target {REAL_TARGET} augmented clips...")
-    # ensure ffmpeg + soundfile + librosa are available
     subprocess.run(['apt-get', 'install', '-y', '-q', 'ffmpeg'], check=True)
     subprocess.run([sys.executable, '-m', 'pip', 'install', '-q', 'soundfile', 'librosa'], check=True)
     import soundfile as sf
     import librosa
 
     def split_on_silence_np(audio_np, sr, min_silence_ms=350, silence_db=-35, keep_silence_ms=100):
-        frame_ms   = 20
-        frame_len  = int(sr * frame_ms / 1000)
-        keep_frames= max(1, keep_silence_ms // frame_ms)
-        threshold  = 10 ** (silence_db / 20)
-        frames = [audio_np[i:i+frame_len] for i in range(0, len(audio_np)-frame_len, frame_len)]
-        is_speech = [np.sqrt(np.mean(f**2)) > threshold for f in frames]
+        frame_ms    = 20
+        frame_len   = int(sr * frame_ms / 1000)
+        keep_frames = max(1, keep_silence_ms // frame_ms)
+        threshold   = 10 ** (silence_db / 20)
+        frames      = [audio_np[i:i+frame_len] for i in range(0, len(audio_np)-frame_len, frame_len)]
+        is_speech   = [np.sqrt(np.mean(f**2)) > threshold for f in frames]
         min_sil_frames = max(1, min_silence_ms // frame_ms)
         clips = []
         i = 0
@@ -227,12 +220,10 @@ if USING_REAL:
                 if augmented_count >= REAL_TARGET:
                     break
                 aug = clip.copy()
-                # speed change via numpy interpolation (no scipy needed)
                 speed = np.random.uniform(0.85, 1.15)
                 new_len = int(len(aug) / speed)
                 aug = np.interp(np.linspace(0, len(aug)-1, new_len),
                                 np.arange(len(aug)), aug).astype(np.float32)
-                # volume + noise
                 aug = aug * np.random.uniform(0.6, 1.4)
                 aug = aug + np.random.randn(len(aug)).astype(np.float32) * np.random.uniform(0.0, 0.008)
                 aug = np.clip(aug, -1.0, 1.0)
@@ -260,9 +251,9 @@ from microwakeword.audio.spectrograms import SpectrogramGeneration
 from mmap_ninja.ragged import RaggedMmap
 MMAP_OUT = 'generated_augmented_features/training/wakeword_mmap'
 os.makedirs(os.path.dirname(MMAP_OUT), exist_ok=True)
-clips = Clips(input_directory='generated_samples', file_pattern='*.wav',
-              max_clip_duration_s=None, remove_silence=False,
-              random_split_seed=10, split_count=0.1)
+clips_obj = Clips(input_directory='generated_samples', file_pattern='*.wav',
+                  max_clip_duration_s=None, remove_silence=False,
+                  random_split_seed=10, split_count=0.1)
 augmenter = Augmentation(
     augmentation_duration_s=3.2,
     augmentation_probabilities={
@@ -276,7 +267,7 @@ augmenter = Augmentation(
     background_min_snr_db=-5, background_max_snr_db=10,
     min_jitter_s=0.195, max_jitter_s=0.205,
 )
-spectrograms = SpectrogramGeneration(clips=clips, augmenter=augmenter, slide_frames=10, step_ms=10)
+spectrograms = SpectrogramGeneration(clips=clips_obj, augmenter=augmenter, slide_frames=10, step_ms=10)
 RaggedMmap.from_generator(
     out_dir=MMAP_OUT,
     sample_generator=spectrograms.spectrogram_generator(split='train', repeat=2),
