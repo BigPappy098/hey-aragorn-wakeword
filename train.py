@@ -327,21 +327,6 @@ def validate_nonstreaming(config, data_processor, model, test_set):
         truncation_strategy="truncate_start",
     )
 
-    print(f"[patch] get_data returned: fingerprints type={type(testing_fingerprints).__name__}, "
-          f"shape={getattr(testing_fingerprints, 'shape', 'no shape')}, "
-          f"dtype={getattr(testing_fingerprints, 'dtype', 'no dtype')}")
-    print(f"[patch] ground_truth type={type(testing_ground_truth).__name__}, "
-          f"shape={getattr(testing_ground_truth, 'shape', 'no shape')}")
-    if hasattr(testing_fingerprints, 'shape') and len(testing_fingerprints.shape) < 3:
-        print(f"[patch] WARNING: fingerprints is {len(testing_fingerprints.shape)}D, expected 3D (N, {config['spectrogram_length']}, num_features)")
-        print(f"[patch] First 5 values: {testing_fingerprints.flat[:5] if hasattr(testing_fingerprints, 'flat') else testing_fingerprints[:5]}")
-    # Also inspect the model's expected input shape
-    try:
-        inp = model.input_shape if hasattr(model, 'input_shape') else model.inputs[0].shape
-        print(f"[patch] Model input_shape: {inp}")
-    except Exception as e:
-        print(f"[patch] Could not get model input_shape: {e}")
-
     testing_ground_truth = testing_ground_truth.reshape(-1, 1)
 
     model.reset_metrics()
@@ -683,8 +668,10 @@ from mmap_ninja.ragged import RaggedMmap
 
 MMAP_TRAIN = 'generated_augmented_features/training/wakeword_mmap'
 MMAP_TEST  = 'generated_augmented_features/testing/wakeword_mmap'
+MMAP_VAL   = 'generated_augmented_features/validation/wakeword_mmap'
 os.makedirs(os.path.dirname(MMAP_TRAIN), exist_ok=True)
 os.makedirs(os.path.dirname(MMAP_TEST),  exist_ok=True)
+os.makedirs(os.path.dirname(MMAP_VAL),   exist_ok=True)
 
 clips_obj = Clips(input_directory='generated_samples', file_pattern='*.wav',
                   max_clip_duration_s=None, remove_silence=False,
@@ -717,12 +704,20 @@ RaggedMmap.from_generator(
     sample_generator=spectrograms.spectrogram_generator(split='test', repeat=1),
     batch_size=100, verbose=True
 )
+print("  Writing validation split...")
+RaggedMmap.from_generator(
+    out_dir=MMAP_VAL,
+    sample_generator=spectrograms.spectrogram_generator(split='validation', repeat=1),
+    batch_size=100, verbose=True
+)
 
 mmap_tr = RaggedMmap(MMAP_TRAIN)
 mmap_te = RaggedMmap(MMAP_TEST)
+mmap_va = RaggedMmap(MMAP_VAL)
 assert len(mmap_tr) > 0, '❌ train mmap is empty'
 assert len(mmap_te) > 0, '❌ test mmap is empty — increase NUM_SAMPLES'
-print(f"✅ {len(mmap_tr)} train | {len(mmap_te)} test spectrograms saved")
+assert len(mmap_va) > 0, '❌ validation mmap is empty — increase NUM_SAMPLES'
+print(f"✅ {len(mmap_tr)} train | {len(mmap_te)} test | {len(mmap_va)} validation spectrograms saved")
 
 # ── Step 10: Negative datasets ────────────────────────────────────────────────
 print("\n[Step 10] Downloading negative datasets...")
