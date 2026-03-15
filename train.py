@@ -107,6 +107,8 @@ def git_configure():
                    check=True, capture_output=True)
     subprocess.run(['git', 'config', '--global', 'user.name', 'RunPod Training Bot'],
                    check=True, capture_output=True)
+    subprocess.run(['git', 'config', '--global', 'pull.rebase', 'false'],
+                   check=True, capture_output=True)
     if GITHUB_TOKEN and GITHUB_REPO:
         subprocess.run(['git', 'remote', 'set-url', 'origin',
                         f'https://{GITHUB_TOKEN}@github.com/{GITHUB_REPO}.git'],
@@ -456,6 +458,7 @@ subprocess.run([
 preview_files = [f for f in os.listdir(preview_dir) if f.endswith('.wav')]
 if preview_files:
     preview_dest = f'models/preview_{TARGET_WORD}.wav'
+    os.makedirs(os.path.join(REPO_ROOT, 'models'), exist_ok=True)
     shutil.copy(os.path.join(preview_dir, preview_files[0]),
                 os.path.join(REPO_ROOT, preview_dest))
     git_configure()
@@ -906,6 +909,7 @@ print(f"\n[Step 13] Generating JSON and pushing to GitHub ({size_kb:.1f} KB)..."
 MODEL_DEST = f'models/{TARGET_WORD}.tflite'
 JSON_DEST  = f'models/{TARGET_WORD}.json'
 
+os.makedirs(os.path.join(REPO_ROOT, 'models'), exist_ok=True)
 shutil.copy(MODEL_SRC, os.path.join(REPO_ROOT, MODEL_DEST))
 
 wake_word_json = {
