@@ -120,11 +120,15 @@ cd YOURREPO
 bash setup_local.sh
 ```
 
-This installs system packages, creates a Python virtual environment, installs TensorFlow and dependencies, and auto-detects your GPU. By default the working directory is `~/wakeword-training` — pass a different path as an argument if you prefer:
+This installs system packages, creates a Python virtual environment, installs TensorFlow and dependencies, and auto-detects your GPU. It will ask you where to put the training data — press Enter to use your current directory, or type a different path:
 
-```bash
-bash setup_local.sh /path/to/your/workdir
 ```
+[2/4] Where should the training data go?
+  Press Enter for current directory: /home/you/hey-aragorn-wakeword
+  Or type a path:
+```
+
+You can also skip the prompt by passing a path as an argument: `bash setup_local.sh /path/to/workdir`
 
 ### 3. Configure your `.env` file
 
