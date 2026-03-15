@@ -211,44 +211,132 @@ if CUT_MARKER in _src:
 _patch = CUT_MARKER + '''
 import numpy as _np_patch
 
-_orig_validate_nonstreaming = validate_nonstreaming
+def _batched_evaluate(model, data, labels, batch_size):
+    """Evaluate model using test_on_batch to avoid fixed-batch-size issues."""
+    model.reset_metrics()
+    n = data.shape[0]
+    for start in range(0, n, batch_size):
+        end = start + batch_size
+        if end > n:
+            # Pad the last batch to match the model's fixed batch dimension
+            pad_n = end - n
+            batch_data = _np_patch.concatenate([data[start:], data[:pad_n]])
+            batch_labels = _np_patch.concatenate([labels[start:], labels[:pad_n]])
+        else:
+            batch_data = data[start:end]
+            batch_labels = labels[start:end]
+        model.test_on_batch(batch_data, batch_labels)
+    # Read accumulated metrics from model
+    result = {}
+    for m in model.metrics:
+        val = m.result()
+        result[m.name] = val
+    return result
 
 def validate_nonstreaming(config, data_processor, model, test_set):
-    """Patched validate_nonstreaming that fixes batch_size and return_dict issues."""
-    _real_evaluate = model.evaluate
+    """Fully replaced validate_nonstreaming — avoids model.evaluate() entirely."""
+    batch_size = config["batch_size"]
 
-    # Get the model's fixed batch size from its input shape
-    _model_batch = model.input_shape[0]  # e.g. 128
+    testing_fingerprints, testing_ground_truth, _ = data_processor.get_data(
+        test_set,
+        batch_size=batch_size,
+        features_length=config["spectrogram_length"],
+        truncation_strategy="truncate_start",
+    )
+    testing_ground_truth = testing_ground_truth.reshape(-1, 1)
 
-    def _evaluate_as_dict(*a, **kw):
-        kw.setdefault("return_dict", True)
-        # Force batch_size to match the model's fixed input batch dimension
-        kw["batch_size"] = _model_batch
+    result = _batched_evaluate(model, testing_fingerprints, testing_ground_truth, batch_size)
 
-        # Pad the input data to be a multiple of _model_batch
-        data = a[0] if len(a) > 0 else kw.get("x")
-        labels = a[1] if len(a) > 1 else kw.get("y")
-        if data is not None and hasattr(data, "shape"):
-            n = data.shape[0]
-            remainder = n % _model_batch
-            if remainder != 0:
-                pad_n = _model_batch - remainder
-                data = _np_patch.concatenate([data, _np_patch.zeros((_model_batch,) + data.shape[1:], dtype=data.dtype)[:pad_n]])
-                if labels is not None and hasattr(labels, "shape"):
-                    labels = _np_patch.concatenate([labels, _np_patch.zeros((_model_batch,) + labels.shape[1:], dtype=labels.dtype)[:pad_n]])
-            a = (data, labels) + a[2:]
+    metrics = {}
+    metrics["accuracy"] = result["accuracy"]
+    metrics["recall"] = result["recall"]
+    metrics["precision"] = result["precision"]
+    metrics["auc"] = result["auc"]
+    metrics["loss"] = result["loss"]
+    metrics["recall_at_no_faph"] = 0
+    metrics["cutoff_for_no_faph"] = 0
+    metrics["ambient_false_positives"] = 0
+    metrics["ambient_false_positives_per_hour"] = 0
+    metrics["average_viable_recall"] = 0
 
-        result = _real_evaluate(*a, **kw)
-        if isinstance(result, (list, tuple)):
-            names = [m.name for m in model.metrics]
-            result = dict(zip(names, result))
-        return result
+    test_set_fp = result["fp"].numpy() if hasattr(result["fp"], "numpy") else result["fp"]
 
-    model.evaluate = _evaluate_as_dict
-    try:
-        return _orig_validate_nonstreaming(config, data_processor, model, test_set)
-    finally:
-        model.evaluate = _real_evaluate
+    if data_processor.get_mode_size("validation_ambient") > 0:
+        (
+            ambient_testing_fingerprints,
+            ambient_testing_ground_truth,
+            _,
+        ) = data_processor.get_data(
+            test_set + "_ambient",
+            batch_size=batch_size,
+            features_length=config["spectrogram_length"],
+            truncation_strategy="split",
+        )
+        ambient_testing_ground_truth = ambient_testing_ground_truth.reshape(-1, 1)
+
+        ambient_predictions = _batched_evaluate(
+            model, ambient_testing_fingerprints, ambient_testing_ground_truth, batch_size
+        )
+
+        duration_of_ambient_set = (
+            data_processor.get_mode_duration("validation_ambient") / 3600.0
+        )
+
+        _to_np = lambda v: v.numpy() if hasattr(v, "numpy") else v
+        all_true_positives = _to_np(ambient_predictions["tp"])
+        ambient_false_positives = _to_np(ambient_predictions["fp"]) - test_set_fp
+        all_false_negatives = _to_np(ambient_predictions["fn"])
+
+        metrics["auc"] = ambient_predictions["auc"]
+        metrics["loss"] = ambient_predictions["loss"]
+
+        recall_at_cutoffs = (
+            all_true_positives / (all_true_positives + all_false_negatives)
+        )
+        faph_at_cutoffs = ambient_false_positives / duration_of_ambient_set
+
+        target_faph_cutoff_probability = 1.0
+        recall_at_no_faph = 0
+        for index, cutoff in enumerate(np.linspace(0.0, 1.0, 101)):
+            if faph_at_cutoffs[index] == 0:
+                target_faph_cutoff_probability = cutoff
+                recall_at_no_faph = recall_at_cutoffs[index]
+                break
+
+        if faph_at_cutoffs[0] > 2:
+            index_of_first_viable = 1
+            while faph_at_cutoffs[index_of_first_viable] > 2:
+                index_of_first_viable += 1
+
+            x0 = faph_at_cutoffs[index_of_first_viable - 1]
+            y0 = recall_at_cutoffs[index_of_first_viable - 1]
+            x1 = faph_at_cutoffs[index_of_first_viable]
+            y1 = recall_at_cutoffs[index_of_first_viable]
+
+            recall_at_2faph = (y0 * (x1 - 2.0) + y1 * (2.0 - x0)) / (x1 - x0)
+        else:
+            index_of_first_viable = 0
+            recall_at_2faph = recall_at_cutoffs[0]
+
+        x_coordinates = [2.0]
+        y_coordinates = [recall_at_2faph]
+
+        for index in range(index_of_first_viable, len(recall_at_cutoffs)):
+            if faph_at_cutoffs[index] != x_coordinates[-1]:
+                x_coordinates.append(faph_at_cutoffs[index])
+                y_coordinates.append(recall_at_cutoffs[index])
+
+        average_viable_recall = (
+            np.trapz(np.flip(y_coordinates), np.flip(x_coordinates)) / 2.0
+        )
+
+        metrics["recall_at_no_faph"] = recall_at_no_faph
+        metrics["cutoff_for_no_faph"] = target_faph_cutoff_probability
+        metrics["ambient_false_positives"] = ambient_false_positives[50]
+        metrics["ambient_false_positives_per_hour"] = faph_at_cutoffs[50]
+        metrics["average_viable_recall"] = average_viable_recall
+
+    return metrics
 '''
 
 with open(_train_py_path, 'w') as f:
