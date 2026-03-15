@@ -5,31 +5,59 @@
 # The pip-installed nvidia-cudnn-cu12 ships the version TF was compiled against.
 # We must ensure LD_LIBRARY_PATH points there so the *subprocess* (training) also
 # picks it up via the dynamic linker, not the older system-level cuDNN.
-import subprocess as _sp, os as _os, sys as _sys, ctypes as _ctypes
+import subprocess as _sp, os as _os, sys as _sys, ctypes as _ctypes, glob as _glob
 
-# Step A: Ensure nvidia-cudnn-cu12 >= 9.3 is installed (TF 2.18 requires it)
-_REQUIRED_CUDNN = '9.3'
+# ── Ensure cuDNN 9.3.0 libs are available (TF 2.18 requires >= 9.3) ──────────
+# We can't just pip-upgrade nvidia-cudnn-cu12 because PyTorch pins ==9.1.0.70.
+# Instead, download the 9.3.0 wheel to a separate directory and extract just
+# the .so files, then point LD_LIBRARY_PATH there.
+_CUDNN_VERSION = '9.3.0.75'
+_CUDNN_LOCAL = '/usr/local/lib/cudnn-9.3'
 _cudnn_lib = None
+
+def _ensure_cudnn_93():
+    """Install cuDNN 9.3.0 to a side directory without disturbing pip packages."""
+    lib_dir = _os.path.join(_CUDNN_LOCAL, 'nvidia', 'cudnn', 'lib')
+    if _os.path.isdir(lib_dir) and _glob.glob(_os.path.join(lib_dir, 'libcudnn.so*')):
+        return lib_dir  # already installed
+    print(f"[init] Installing cuDNN {_CUDNN_VERSION} to {_CUDNN_LOCAL}...")
+    _sp.run([_sys.executable, '-m', 'pip', 'install', '-q',
+             '--no-deps', f'--target={_CUDNN_LOCAL}',
+             f'nvidia-cudnn-cu12=={_CUDNN_VERSION}'],
+            check=True)
+    return lib_dir
+
 try:
-    _ver = _sp.check_output(
+    # First check if the existing pip cuDNN is already >= 9.3
+    _existing = _sp.check_output(
         [_sys.executable, '-c',
          'from importlib.metadata import version; print(version("nvidia-cudnn-cu12"))'],
         text=True, timeout=30).strip()
-    _need_upgrade = tuple(int(x) for x in _ver.split('.')[:2]) < (9, 3)
+    _existing_ok = tuple(int(x) for x in _existing.split('.')[:2]) >= (9, 3)
 except Exception:
-    _need_upgrade = True
+    _existing_ok = False
 
-if _need_upgrade:
-    print(f"[init] Upgrading nvidia-cudnn-cu12 to >= {_REQUIRED_CUDNN}...")
-    _sp.run([_sys.executable, '-m', 'pip', 'install', '-q',
-             f'nvidia-cudnn-cu12>={_REQUIRED_CUDNN},<10'], check=True)
+if _existing_ok:
+    # Pip package claims >= 9.3, try to use it directly
+    try:
+        _cudnn_lib = _sp.check_output(
+            [_sys.executable, '-c',
+             'import nvidia.cudnn, os; print(os.path.dirname(nvidia.cudnn.__file__))'],
+            text=True, timeout=30).strip() + '/lib'
+    except Exception:
+        # Module structure changed in newer versions — fall back to side-install
+        _existing_ok = False
 
-# Step B: Set LD_LIBRARY_PATH and preload correct cuDNN into current process
-try:
-    _cudnn_lib = _sp.check_output(
-        [_sys.executable, '-c',
-         'import nvidia.cudnn, os; print(os.path.dirname(nvidia.cudnn.__file__))'],
-        text=True, timeout=30).strip() + '/lib'
+if not _existing_ok:
+    # Need cuDNN 9.3 — install to a side directory to avoid pip conflicts
+    try:
+        _cudnn_lib = _ensure_cudnn_93()
+        print(f"[init] cuDNN 9.3.0 libs ready at: {_cudnn_lib}")
+    except Exception as _e:
+        print(f"[init] WARNING: Failed to install cuDNN 9.3.0 ({_e}).")
+
+# Set LD_LIBRARY_PATH and preload into current process
+if _cudnn_lib and _os.path.isdir(_cudnn_lib):
     _os.environ['LD_LIBRARY_PATH'] = \
         f"{_cudnn_lib}:{_os.environ.get('LD_LIBRARY_PATH', '')}"
     for _f in sorted(_os.listdir(_cudnn_lib)):
@@ -39,9 +67,8 @@ try:
             except OSError:
                 pass
     print(f"[init] cuDNN path set: {_cudnn_lib}")
-except Exception as _e:
-    print(f"[init] WARNING: Could not locate pip nvidia.cudnn ({_e}). "
-          "Training may fail if system cuDNN version doesn't match TF.")
+else:
+    print("[init] WARNING: No cuDNN 9.3 path available. Training may fail.")
 
 # ── Normal imports ────────────────────────────────────────────────────────────
 import os, sys, shutil, yaml, urllib.request, zipfile, json
