@@ -107,6 +107,8 @@ def git_configure():
                    check=True, capture_output=True)
     subprocess.run(['git', 'config', '--global', 'user.name', 'RunPod Training Bot'],
                    check=True, capture_output=True)
+    subprocess.run(['git', 'config', '--global', 'pull.rebase', 'false'],
+                   check=True, capture_output=True)
     if GITHUB_TOKEN and GITHUB_REPO:
         subprocess.run(['git', 'remote', 'set-url', 'origin',
                         f'https://{GITHUB_TOKEN}@github.com/{GITHUB_REPO}.git'],
