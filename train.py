@@ -101,9 +101,11 @@ def prompt(msg, default=None, valid_fn=None):
 
 def git_configure():
     """Idempotent git identity + remote setup."""
-    subprocess.run(['git', 'config', 'user.email', 'runpod@training.bot'],
+    subprocess.run(['git', 'config', '--global', 'safe.directory', '*'],
                    check=True, capture_output=True)
-    subprocess.run(['git', 'config', 'user.name', 'RunPod Training Bot'],
+    subprocess.run(['git', 'config', '--global', 'user.email', 'runpod@training.bot'],
+                   check=True, capture_output=True)
+    subprocess.run(['git', 'config', '--global', 'user.name', 'RunPod Training Bot'],
                    check=True, capture_output=True)
     if GITHUB_TOKEN and GITHUB_REPO:
         subprocess.run(['git', 'remote', 'set-url', 'origin',
