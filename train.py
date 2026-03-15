@@ -418,6 +418,14 @@ except ImportError:
     subprocess.run([sys.executable, '-m', 'pip', 'install', '-q', 'piper-tts'],
                    check=True)
 
+try:
+    import audiomentations  # noqa: F401
+except ImportError:
+    print("[dep] audiomentations not found — installing...")
+    subprocess.run([sys.executable, '-m', 'pip', 'install', '-q',
+                    'audiomentations==0.33.0', 'webrtcvad'],
+                   check=True)
+
 # ── Step 4: Piper voice model ─────────────────────────────────────────────────
 print("\n[Step 4] Downloading Piper model...")
 os.makedirs('piper-sample-generator/models', exist_ok=True)
