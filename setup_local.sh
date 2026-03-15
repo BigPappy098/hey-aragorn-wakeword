@@ -26,7 +26,7 @@ pip install --upgrade pip -q
 
 # ── Python packages ──────────────────────────────────────────────────────────
 echo "[4/4] Installing Python packages..."
-pip install -q tensorflow==2.18.0
+pip install -q "tensorflow>=2.18.0"
 pip install -q numpy pyyaml mmap-ninja huggingface-hub soundfile librosa
 
 # GPU users: install cuDNN
