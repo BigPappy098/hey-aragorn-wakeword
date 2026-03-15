@@ -110,7 +110,7 @@ def git_configure():
     if GITHUB_TOKEN and GITHUB_REPO:
         subprocess.run(['git', 'remote', 'set-url', 'origin',
                         f'https://{GITHUB_TOKEN}@github.com/{GITHUB_REPO}.git'],
-                       check=True, capture_output=True)
+                       check=True, capture_output=True, cwd=REPO_ROOT)
 
 import subprocess                       # re-import at module scope for clarity
 
@@ -140,6 +140,7 @@ GITHUB_REPO  = os.environ.get('GITHUB_REPO', '')
 GITHUB_TOKEN = os.environ.get('GITHUB_TOKEN', '')
 
 BASE = os.environ.get('WORK_DIR', '/workspace/training')
+REPO_ROOT = os.environ.get('REPO_ROOT', '/workspace')
 os.chdir(BASE)
 
 # ── Clean up previous training data (keep downloads to save time) ────────────
@@ -189,7 +190,7 @@ else:
         print(f"   Tip: One long file with 10-50 repetitions, 1-2 sec pause between each.\n")
         prompt("Press Enter when your files are uploaded and committed to GitHub...")
         git_configure()
-        subprocess.run(['git', 'pull', 'origin', 'main'], check=True)
+        subprocess.run(['git', 'pull', 'origin', 'main'], check=True, cwd=REPO_ROOT)
         real_audio_files = scan_real_recordings()
         if real_audio_files:
             print(f"✅ Found {len(real_audio_files)} recording file(s) — using 50/50 split.")
@@ -455,12 +456,13 @@ subprocess.run([
 preview_files = [f for f in os.listdir(preview_dir) if f.endswith('.wav')]
 if preview_files:
     preview_dest = f'models/preview_{TARGET_WORD}.wav'
-    shutil.copy(os.path.join(preview_dir, preview_files[0]), preview_dest)
+    shutil.copy(os.path.join(preview_dir, preview_files[0]),
+                os.path.join(REPO_ROOT, preview_dest))
     git_configure()
-    subprocess.run(['git', 'add', preview_dest], check=True)
+    subprocess.run(['git', 'add', preview_dest], check=True, cwd=REPO_ROOT)
     subprocess.run(['git', 'commit', '-m',
-                    f'Preview sample: {TARGET_WORD}'], check=True)
-    subprocess.run(['git', 'push', 'origin', 'main'], check=True)
+                    f'Preview sample: {TARGET_WORD}'], check=True, cwd=REPO_ROOT)
+    subprocess.run(['git', 'push', 'origin', 'main'], check=True, cwd=REPO_ROOT)
     print(f"\n🔊 Preview pushed to GitHub!")
     print(f"   Go to: https://github.com/{GITHUB_REPO}/blob/main/{preview_dest}")
     print(f"   Download the .wav file and play it to check pronunciation.\n")
@@ -904,7 +906,7 @@ print(f"\n[Step 13] Generating JSON and pushing to GitHub ({size_kb:.1f} KB)..."
 MODEL_DEST = f'models/{TARGET_WORD}.tflite'
 JSON_DEST  = f'models/{TARGET_WORD}.json'
 
-shutil.copy(MODEL_SRC, MODEL_DEST)
+shutil.copy(MODEL_SRC, os.path.join(REPO_ROOT, MODEL_DEST))
 
 wake_word_json = {
     'type': 'micro',
@@ -921,14 +923,14 @@ wake_word_json = {
         'minimum_esphome_version': '2024.7.0'
     }
 }
-with open(JSON_DEST, 'w') as f:
+with open(os.path.join(REPO_ROOT, JSON_DEST), 'w') as f:
     json.dump(wake_word_json, f, indent=2)
 
 git_configure()
-subprocess.run(['git', 'add', MODEL_DEST, JSON_DEST], check=True)
+subprocess.run(['git', 'add', MODEL_DEST, JSON_DEST], check=True, cwd=REPO_ROOT)
 subprocess.run(['git', 'commit', '-m',
-                f'Trained model: {TARGET_WORD} ({size_kb:.1f} KB)'], check=True)
-subprocess.run(['git', 'push', 'origin', 'main'], check=True)
+                f'Trained model: {TARGET_WORD} ({size_kb:.1f} KB)'], check=True, cwd=REPO_ROOT)
+subprocess.run(['git', 'push', 'origin', 'main'], check=True, cwd=REPO_ROOT)
 
 print(f"\n🎉 Done! Model + JSON committed to {GITHUB_REPO}/models/")
 print(f"   ESPHome URL: https://raw.githubusercontent.com/"
