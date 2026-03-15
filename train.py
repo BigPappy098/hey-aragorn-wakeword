@@ -758,10 +758,22 @@ train_env = {
 if _cudnn_lib:
     train_env['LD_LIBRARY_PATH'] = f"{_cudnn_lib}:{os.environ.get('LD_LIBRARY_PATH', '')}"
 
-# Verify cuDNN availability before launching the long training run
-print("[Step 12] Verifying cuDNN version in subprocess...")
-cudnn_check = subprocess.run(
-    [sys.executable, '-c', '''
+# Detect GPU availability
+_has_gpu = False
+try:
+    _gpu_probe = subprocess.run(
+        [sys.executable, '-c',
+         'import tensorflow as tf; print(len(tf.config.list_physical_devices("GPU")))'],
+        text=True, capture_output=True, timeout=60, env=train_env)
+    _has_gpu = _gpu_probe.stdout.strip() not in ('0', '')
+except Exception:
+    pass
+
+if _has_gpu:
+    # Verify cuDNN availability before launching the long training run
+    print("[Step 12] GPU detected — verifying cuDNN...")
+    cudnn_check = subprocess.run(
+        [sys.executable, '-c', '''
 import os, ctypes, glob
 ld = os.environ.get("LD_LIBRARY_PATH", "")
 print(f"LD_LIBRARY_PATH = {ld}")
@@ -769,7 +781,6 @@ for p in ld.split(":"):
     libs = glob.glob(os.path.join(p, "libcudnn*.so*"))
     if libs:
         print(f"  cuDNN libs in {p}: {[os.path.basename(l) for l in libs[:5]]}")
-# Check actual cuDNN runtime version
 try:
     libcudnn = ctypes.CDLL("libcudnn.so.9")
     ver = libcudnn.cudnnGetVersion()
@@ -793,17 +804,24 @@ try:
 except Exception as e:
     print(f"GPU check failed: {e}")
 '''],
-    text=True, env=train_env, capture_output=True
-)
-print(cudnn_check.stdout)
-if 'CUDNN_TOO_OLD' in (cudnn_check.stdout or ''):
-    print("ERROR: cuDNN runtime version is < 9.3.0 — TF 2.18 requires >= 9.3.0.")
-    print("       Try: pip install nvidia-cudnn-cu12>=9.3,<10")
-    sys.exit(1)
-if cudnn_check.stderr:
-    for line in cudnn_check.stderr.splitlines():
-        if 'cudnn' in line.lower() or 'CuDNN' in line:
-            print(f"  WARN: {line.strip()}")
+        text=True, env=train_env, capture_output=True
+    )
+    print(cudnn_check.stdout)
+    if 'CUDNN_TOO_OLD' in (cudnn_check.stdout or ''):
+        print("ERROR: cuDNN runtime version is < 9.3.0 — TF 2.18 requires >= 9.3.0.")
+        print("       Try: pip install nvidia-cudnn-cu12>=9.3,<10")
+        sys.exit(1)
+    if cudnn_check.stderr:
+        for line in cudnn_check.stderr.splitlines():
+            if 'cudnn' in line.lower() or 'CuDNN' in line:
+                print(f"  WARN: {line.strip()}")
+else:
+    print("[Step 12] No GPU detected — falling back to CPU-only mode.")
+    print("         Training on CPU is supported but will be significantly slower.")
+    print("         For production training, a GPU instance is strongly recommended.")
+    print(f"\n         Note: {TRAINING_STEPS} steps on CPU will be very slow.")
+    print(f"         This is fine for testing/debugging your configuration.")
+    print(f"         For the final training run, use a GPU instance (any GPU helps).\n")
 
 result = subprocess.run([
     sys.executable, '-m', 'microwakeword.model_train_eval',
