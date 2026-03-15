@@ -112,12 +112,17 @@ def git_configure():
     if not GITHUB_TOKEN or not GITHUB_REPO:
         return
     repo_url = f'https://{GITHUB_TOKEN}@github.com/{GITHUB_REPO}.git'
-    # If REPO_ROOT isn't a git repo yet, clone into it
+    # If REPO_ROOT isn't a git repo yet, init in place (dir may have files)
     if not os.path.isdir(os.path.join(REPO_ROOT, '.git')):
-        print(f"[git] Repo not found at {REPO_ROOT}, cloning...")
+        print(f"[git] Initialising repo at {REPO_ROOT}...")
         os.makedirs(REPO_ROOT, exist_ok=True)
-        subprocess.run(['git', 'clone', repo_url, REPO_ROOT],
-                       check=True)
+        subprocess.run(['git', 'init'], check=True, cwd=REPO_ROOT)
+        subprocess.run(['git', 'remote', 'add', 'origin', repo_url],
+                       check=True, cwd=REPO_ROOT)
+        subprocess.run(['git', 'fetch', 'origin', 'main'],
+                       check=True, cwd=REPO_ROOT)
+        subprocess.run(['git', 'reset', 'origin/main'],
+                       check=True, cwd=REPO_ROOT)
     else:
         subprocess.run(['git', 'remote', 'set-url', 'origin', repo_url],
                        check=True, capture_output=True, cwd=REPO_ROOT)
@@ -150,7 +155,7 @@ GITHUB_REPO  = os.environ.get('GITHUB_REPO', '')
 GITHUB_TOKEN = os.environ.get('GITHUB_TOKEN', '')
 
 BASE = os.environ.get('WORK_DIR', '/workspace/training')
-REPO_ROOT = os.environ.get('REPO_ROOT', '/workspace')
+REPO_ROOT = os.environ.get('REPO_ROOT', '/workspace/training')
 os.chdir(BASE)
 
 # ── Clean up previous training data (keep downloads to save time) ────────────
