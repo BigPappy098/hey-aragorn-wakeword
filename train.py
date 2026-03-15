@@ -252,7 +252,7 @@ def _safe_evaluate(model, data, labels, batch_size=128):
     result = None
     try:
         result = model.evaluate(data, labels, batch_size=batch_size,
-                                return_dict=True, verbose=0)
+                                return_dict=True, verbose=2)
         if not hasattr(_safe_evaluate, "_logged"):
             print(f"[patch] model.evaluate(return_dict=True) keys: {list(result.keys())}")
     except Exception as e:
@@ -318,14 +318,17 @@ def _safe_evaluate(model, data, labels, batch_size=128):
 
 def validate_nonstreaming(config, data_processor, model, test_set):
     """Patched validate_nonstreaming — handles Keras 3 metric naming."""
+    import time as _time
     batch_size = config["batch_size"]
 
+    print(f"[validation] Loading {test_set} data...", flush=True)
     testing_fingerprints, testing_ground_truth, _ = data_processor.get_data(
         test_set,
         batch_size=batch_size,
         features_length=config["spectrogram_length"],
         truncation_strategy="truncate_start",
     )
+    print(f"[validation] {test_set} data shape: {testing_fingerprints.shape}", flush=True)
 
     testing_ground_truth = testing_ground_truth.reshape(-1, 1)
 
