@@ -7,7 +7,6 @@ _os.environ['LD_LIBRARY_PATH'] = f"{_cudnn_lib}:{_os.environ.get('LD_LIBRARY_PAT
 import subprocess, os, sys, shutil, yaml, urllib.request, zipfile, json
 import numpy as np
 
-# ── INTERACTIVE CONFIG ────────────────────────────────────────────────────────
 print("\n=== microWakeWord Custom Trainer ===\n")
 
 while True:
@@ -116,14 +115,12 @@ preview_dir = '/tmp/preview_sample'
 if os.path.exists(preview_dir):
     shutil.rmtree(preview_dir)
 os.makedirs(preview_dir)
-
 env = {**os.environ, 'PYTHONPATH': os.path.abspath('piper-sample-generator')}
 subprocess.run([
     sys.executable, '-m', 'piper_sample_generator',
     TARGET_WORD, '--max-samples', '1', '--batch-size', '1',
     '--model', model_path, '--output-dir', preview_dir
 ], text=True, env=env, check=True)
-
 preview_files = [f for f in os.listdir(preview_dir) if f.endswith('.wav')]
 if preview_files:
     preview_dest = f'models/preview_{TARGET_WORD}.wav'
@@ -160,23 +157,60 @@ subprocess.run([
 synth_count = len([f for f in os.listdir('generated_samples') if f.endswith('.wav')])
 print(f"\u2705 {synth_count} synthetic samples generated")
 
-# ── Step 7b: Augment real recordings ─────────────────────────────────────────
+# ── Step 7b: Process + augment real recordings ───────────────────────────────
 if USING_REAL:
     print(f"\n[Step 7b] Processing real recordings \u2192 target {REAL_TARGET} augmented clips...")
-    subprocess.run([sys.executable, '-m', 'pip', 'install', '-q', 'pydub', 'soundfile', 'scipy'], check=True)
-    from pydub import AudioSegment
-    from pydub.silence import split_on_silence
+    # ensure ffmpeg + soundfile + librosa are available
+    subprocess.run(['apt-get', 'install', '-y', '-q', 'ffmpeg'], check=True)
+    subprocess.run([sys.executable, '-m', 'pip', 'install', '-q', 'soundfile', 'librosa'], check=True)
     import soundfile as sf
-    from scipy import signal as scipy_signal
+    import librosa
+
+    def split_on_silence_np(audio_np, sr, min_silence_ms=350, silence_db=-35, keep_silence_ms=100):
+        frame_ms   = 20
+        frame_len  = int(sr * frame_ms / 1000)
+        keep_frames= max(1, keep_silence_ms // frame_ms)
+        threshold  = 10 ** (silence_db / 20)
+        frames = [audio_np[i:i+frame_len] for i in range(0, len(audio_np)-frame_len, frame_len)]
+        is_speech = [np.sqrt(np.mean(f**2)) > threshold for f in frames]
+        min_sil_frames = max(1, min_silence_ms // frame_ms)
+        clips = []
+        i = 0
+        while i < len(is_speech):
+            if is_speech[i]:
+                start = max(0, i - keep_frames)
+                j = i
+                while j < len(is_speech):
+                    if not is_speech[j]:
+                        sil_start = j
+                        while j < len(is_speech) and not is_speech[j]:
+                            j += 1
+                        if j - sil_start >= min_sil_frames:
+                            end = min(len(is_speech), sil_start + keep_frames)
+                            clips.append(audio_np[start*frame_len : end*frame_len])
+                            i = j
+                            break
+                    else:
+                        j += 1
+                else:
+                    end = min(len(is_speech), j + keep_frames)
+                    clips.append(audio_np[start*frame_len : end*frame_len])
+                    i = j
+            else:
+                i += 1
+        return clips
+
     raw_clips = []
     for fpath in real_audio_files:
-        print(f"  Splitting {os.path.basename(fpath)}...")
-        audio = AudioSegment.from_file(fpath).set_channels(1).set_frame_rate(16000)
-        clips = split_on_silence(audio, min_silence_len=350, silence_thresh=audio.dBFS - 14, keep_silence=100)
-        valid = [c for c in clips if 300 <= len(c) <= 3500]
+        print(f"  Loading {os.path.basename(fpath)}...")
+        audio_np, sr = librosa.load(fpath, sr=16000, mono=True)
+        clips = split_on_silence_np(audio_np, sr)
+        valid = [c for c in clips if 300 <= len(c)/sr*1000 <= 3500]
         print(f"    {len(valid)} valid clips found (of {len(clips)} total)")
         raw_clips.extend(valid)
+
     print(f"  Total individual clips: {len(raw_clips)}")
+
     if len(raw_clips) == 0:
         print("  \u26a0\ufe0f  No valid clips detected \u2014 falling back to synthetic-only.")
         USING_REAL = False
@@ -187,24 +221,25 @@ if USING_REAL:
             if augmented_count >= REAL_TARGET:
                 break
             orig_path = f'generated_samples/real_{i:04d}_orig.wav'
-            clip.export(orig_path, format='wav')
+            sf.write(orig_path, clip, 16000)
             augmented_count += 1
-            audio_np, sr = sf.read(orig_path)
-            if audio_np.ndim > 1:
-                audio_np = audio_np.mean(axis=1)
             for rep in range(reps_needed):
                 if augmented_count >= REAL_TARGET:
                     break
-                aug = audio_np.copy()
+                aug = clip.copy()
+                # speed change via numpy interpolation (no scipy needed)
                 speed = np.random.uniform(0.85, 1.15)
-                aug = scipy_signal.resample(aug, int(len(aug) / speed))
+                new_len = int(len(aug) / speed)
+                aug = np.interp(np.linspace(0, len(aug)-1, new_len),
+                                np.arange(len(aug)), aug).astype(np.float32)
+                # volume + noise
                 aug = aug * np.random.uniform(0.6, 1.4)
-                aug = aug + np.random.randn(len(aug)) * np.random.uniform(0.0, 0.008)
-                aug = np.clip(aug, -1.0, 1.0).astype(np.float32)
-                sf.write(f'generated_samples/real_{i:04d}_aug{rep:03d}.wav', aug, sr)
+                aug = aug + np.random.randn(len(aug)).astype(np.float32) * np.random.uniform(0.0, 0.008)
+                aug = np.clip(aug, -1.0, 1.0)
+                sf.write(f'generated_samples/real_{i:04d}_aug{rep:03d}.wav', aug, 16000)
                 augmented_count += 1
         total_samples = len([f for f in os.listdir('generated_samples') if f.endswith('.wav')])
-        print(f"\u2705 {augmented_count} real/augmented clips added")
+        print(f"\u2705 {augmented_count} real/augmented clips written")
         print(f"\u2705 {total_samples} total samples ({synth_count} synthetic + {augmented_count} real)")
 
 # ── Step 8: Augmentation data ─────────────────────────────────────────────────
