@@ -210,182 +210,124 @@ if CUT_MARKER in _src:
     _src = _src[:_src.index(CUT_MARKER)]
 
 _patch = CUT_MARKER + '''
-import numpy as _np_patch
 
 def _safe_evaluate(model, data, labels, batch_size=128):
-    """Call model.evaluate and return a dict with canonical metric names.
-
-    Handles Keras 3 naming differences by:
-    1. Trying return_dict=True first
-    2. Falling back to list form + metrics_names
-    3. Falling back to index-based access (matching compile order)
-    4. Normalizing key names via aliases
-    """
-    # The model is compiled with metrics in this order:
-    #   [0] loss (from loss fn)
-    #   [1] BinaryAccuracy(name="accuracy")
-    #   [2] Recall(name="recall")
-    #   [3] Precision(name="precision")
-    #   [4] TruePositives(name="tp", thresholds=101)
-    #   [5] FalsePositives(name="fp", thresholds=101)
-    #   [6] TrueNegatives(name="tn", thresholds=101)
-    #   [7] FalseNegatives(name="fn", thresholds=101)
-    #   [8] AUC(name="auc")
-    #   [9] BinaryCrossentropy(name="loss")
-    _INDEX_MAP = {
-        0: "compile_loss", 1: "accuracy", 2: "recall", 3: "precision",
-        4: "tp", 5: "fp", 6: "tn", 7: "fn", 8: "auc", 9: "loss",
-    }
+    """Call model.evaluate ONCE and return a dict with canonical metric names."""
     _ALIASES = {
-        "accuracy": {"accuracy", "binary_accuracy", "acc"},
-        "loss": {"loss", "binary_crossentropy"},
-        "recall": {"recall", "recall_1"},
-        "precision": {"precision", "precision_1"},
-        "auc": {"auc", "auc_1"},
-        "tp": {"tp", "true_positives", "tp_1"},
-        "fp": {"fp", "false_positives", "fp_1"},
-        "tn": {"tn", "true_negatives", "tn_1"},
-        "fn": {"fn", "false_negatives", "fn_1"},
+        "accuracy": ["binary_accuracy", "acc"],
+        "loss": ["binary_crossentropy"],
+        "recall": ["recall_1"],
+        "precision": ["precision_1"],
+        "auc": ["auc_1"],
+        "tp": ["true_positives", "tp_1"],
+        "fp": ["false_positives", "fp_1"],
+        "tn": ["true_negatives", "tn_1"],
+        "fn": ["false_negatives", "fn_1"],
     }
 
-    # Try return_dict=True first
-    result = None
-    try:
-        result = model.evaluate(data, labels, batch_size=batch_size,
-                                return_dict=True, verbose=2)
-        if not hasattr(_safe_evaluate, "_logged"):
-            print(f"[patch] model.evaluate(return_dict=True) keys: {list(result.keys())}")
-    except Exception as e:
-        if not hasattr(_safe_evaluate, "_logged"):
-            print(f"[patch] return_dict=True failed ({e}), using list form")
+    n_samples = data.shape[0] if hasattr(data, "shape") else len(data)
+    print(f"  [eval] Running model.evaluate on {n_samples} samples...", flush=True)
 
-    if result is None:
-        # Fall back to list form
-        raw = model.evaluate(data, labels, batch_size=batch_size, verbose=0)
+    # Single evaluate call — try return_dict first, fall back to list
+    try:
+        raw = model.evaluate(data, labels, batch_size=batch_size,
+                             return_dict=True, verbose=2)
+    except Exception:
+        raw = model.evaluate(data, labels, batch_size=batch_size, verbose=2)
         if not isinstance(raw, list):
             raw = [raw]
-        # Try metrics_names first, then index-based
-        try:
-            names = model.metrics_names
-            if not hasattr(_safe_evaluate, "_logged"):
-                print(f"[patch] metrics_names: {names}")
-            result = dict(zip(names, raw))
-        except Exception:
-            if not hasattr(_safe_evaluate, "_logged"):
-                print(f"[patch] Using index-based access, {len(raw)} values")
-            result = {}
-            for idx, canonical in _INDEX_MAP.items():
-                if idx < len(raw):
-                    result[canonical] = raw[idx]
+        names = getattr(model, "metrics_names", [])
+        raw = dict(zip(names, raw)) if names else {}
 
-    # Normalize keys: for each canonical name, check if a known alias exists
-    normalized = {}
+    # Normalize: map any alias back to the canonical name
+    result = {}
     for canonical, aliases in _ALIASES.items():
-        # Check if canonical name already present
-        if canonical in result:
-            val = result[canonical]
-            normalized[canonical] = val.numpy() if hasattr(val, "numpy") else val
-            continue
-        # Check aliases
-        for alias in aliases:
-            if alias in result:
-                val = result[alias]
-                normalized[canonical] = val.numpy() if hasattr(val, "numpy") else val
-                break
-
-    # If we still don't have all keys, try index-based as last resort
-    if len(normalized) < len(_ALIASES):
-        missing = set(_ALIASES.keys()) - set(normalized.keys())
-        if not hasattr(_safe_evaluate, "_logged"):
-            print(f"[patch] Missing after alias lookup: {missing}, trying index fallback")
-        # Re-evaluate with list form if needed
-        try:
-            raw = model.evaluate(data, labels, batch_size=batch_size, verbose=0)
-            if not isinstance(raw, list):
-                raw = [raw]
-            for idx, canonical in _INDEX_MAP.items():
-                if canonical in missing and idx < len(raw):
-                    val = raw[idx]
-                    normalized[canonical] = val.numpy() if hasattr(val, "numpy") else val
-        except Exception:
-            pass
+        if canonical in raw:
+            val = raw[canonical]
+            result[canonical] = val.numpy() if hasattr(val, "numpy") else val
+        else:
+            for alias in aliases:
+                if alias in raw:
+                    val = raw[alias]
+                    result[canonical] = val.numpy() if hasattr(val, "numpy") else val
+                    break
 
     if not hasattr(_safe_evaluate, "_logged"):
-        print(f"[patch] Final metric keys: {list(normalized.keys())}")
+        print(f"  [eval] Raw keys: {list(raw.keys())}")
+        print(f"  [eval] Resolved keys: {list(result.keys())}")
         _safe_evaluate._logged = True
 
-    return normalized
+    return result
 
 def validate_nonstreaming(config, data_processor, model, test_set):
     """Patched validate_nonstreaming — handles Keras 3 metric naming."""
-    import time as _time
     batch_size = config["batch_size"]
 
-    print(f"[validation] Loading {test_set} data...", flush=True)
+    print(f"[validation] Loading '{test_set}' data...", flush=True)
     testing_fingerprints, testing_ground_truth, _ = data_processor.get_data(
         test_set,
         batch_size=batch_size,
         features_length=config["spectrogram_length"],
         truncation_strategy="truncate_start",
     )
-    print(f"[validation] {test_set} data shape: {testing_fingerprints.shape}", flush=True)
+    print(f"[validation] {test_set} shape: {testing_fingerprints.shape} "
+          f"(ground_truth: {testing_ground_truth.shape})", flush=True)
 
     testing_ground_truth = testing_ground_truth.reshape(-1, 1)
-
     model.reset_metrics()
 
     result = _safe_evaluate(model, testing_fingerprints, testing_ground_truth,
                             batch_size=batch_size)
 
-    metrics = {}
-    metrics["accuracy"] = result["accuracy"]
-    metrics["recall"] = result["recall"]
-    metrics["precision"] = result["precision"]
-    metrics["auc"] = result["auc"]
-    metrics["loss"] = result["loss"]
-    metrics["recall_at_no_faph"] = 0
-    metrics["cutoff_for_no_faph"] = 0
-    metrics["ambient_false_positives"] = 0
-    metrics["ambient_false_positives_per_hour"] = 0
-    metrics["average_viable_recall"] = 0
-
+    metrics = {
+        "accuracy": result["accuracy"],
+        "recall": result["recall"],
+        "precision": result["precision"],
+        "auc": result["auc"],
+        "loss": result["loss"],
+        "recall_at_no_faph": 0,
+        "cutoff_for_no_faph": 0,
+        "ambient_false_positives": 0,
+        "ambient_false_positives_per_hour": 0,
+        "average_viable_recall": 0,
+    }
     test_set_fp = result["fp"]
 
-    if data_processor.get_mode_size("validation_ambient") > 0:
+    ambient_mode = test_set + "_ambient"
+    if data_processor.get_mode_size(ambient_mode) > 0:
+        print(f"[validation] Loading '{ambient_mode}' data...", flush=True)
         (
-            ambient_testing_fingerprints,
-            ambient_testing_ground_truth,
+            ambient_fingerprints,
+            ambient_ground_truth,
             _,
         ) = data_processor.get_data(
-            test_set + "_ambient",
+            ambient_mode,
             batch_size=batch_size,
             features_length=config["spectrogram_length"],
             truncation_strategy="split",
         )
-        ambient_testing_ground_truth = ambient_testing_ground_truth.reshape(-1, 1)
+        print(f"[validation] {ambient_mode} shape: {ambient_fingerprints.shape}", flush=True)
+        ambient_ground_truth = ambient_ground_truth.reshape(-1, 1)
 
-        # Accumulate metrics across both test and ambient sets (don't reset)
         with swap_attribute(model, "reset_metrics", lambda: None):
             ambient_result = _safe_evaluate(
-                model, ambient_testing_fingerprints,
-                ambient_testing_ground_truth, batch_size=batch_size
+                model, ambient_fingerprints,
+                ambient_ground_truth, batch_size=batch_size
             )
 
-        duration_of_ambient_set = (
-            data_processor.get_mode_duration("validation_ambient") / 3600.0
+        duration_hours = (
+            data_processor.get_mode_duration(ambient_mode) / 3600.0
         )
 
-        all_true_positives = ambient_result["tp"]
-        ambient_false_positives = ambient_result["fp"] - test_set_fp
-        all_false_negatives = ambient_result["fn"]
+        all_tp = ambient_result["tp"]
+        ambient_fp = ambient_result["fp"] - test_set_fp
+        all_fn = ambient_result["fn"]
 
         metrics["auc"] = ambient_result["auc"]
         metrics["loss"] = ambient_result["loss"]
 
-        recall_at_cutoffs = (
-            all_true_positives / (all_true_positives + all_false_negatives)
-        )
-        faph_at_cutoffs = ambient_false_positives / duration_of_ambient_set
+        recall_at_cutoffs = all_tp / (all_tp + all_fn)
+        faph_at_cutoffs = ambient_fp / duration_hours
 
         target_faph_cutoff_probability = 1.0
         recall_at_no_faph = 0
@@ -397,15 +339,18 @@ def validate_nonstreaming(config, data_processor, model, test_set):
 
         if faph_at_cutoffs[0] > 2:
             index_of_first_viable = 1
-            while faph_at_cutoffs[index_of_first_viable] > 2:
+            while (index_of_first_viable < len(faph_at_cutoffs)
+                   and faph_at_cutoffs[index_of_first_viable] > 2):
                 index_of_first_viable += 1
 
-            x0 = faph_at_cutoffs[index_of_first_viable - 1]
-            y0 = recall_at_cutoffs[index_of_first_viable - 1]
-            x1 = faph_at_cutoffs[index_of_first_viable]
-            y1 = recall_at_cutoffs[index_of_first_viable]
-
-            recall_at_2faph = (y0 * (x1 - 2.0) + y1 * (2.0 - x0)) / (x1 - x0)
+            if index_of_first_viable >= len(faph_at_cutoffs):
+                recall_at_2faph = 0
+            else:
+                x0 = faph_at_cutoffs[index_of_first_viable - 1]
+                y0 = recall_at_cutoffs[index_of_first_viable - 1]
+                x1 = faph_at_cutoffs[index_of_first_viable]
+                y1 = recall_at_cutoffs[index_of_first_viable]
+                recall_at_2faph = (y0 * (x1 - 2.0) + y1 * (2.0 - x0)) / (x1 - x0)
         else:
             index_of_first_viable = 0
             recall_at_2faph = recall_at_cutoffs[0]
@@ -424,9 +369,13 @@ def validate_nonstreaming(config, data_processor, model, test_set):
 
         metrics["recall_at_no_faph"] = recall_at_no_faph
         metrics["cutoff_for_no_faph"] = target_faph_cutoff_probability
-        metrics["ambient_false_positives"] = ambient_false_positives[50]
+        metrics["ambient_false_positives"] = ambient_fp[50]
         metrics["ambient_false_positives_per_hour"] = faph_at_cutoffs[50]
         metrics["average_viable_recall"] = average_viable_recall
+        print(f"[validation] avg_viable_recall={average_viable_recall:.4f} "
+              f"faph@0.5={faph_at_cutoffs[50]:.2f}", flush=True)
+    else:
+        print(f"[validation] No ambient data — skipping FAPH metrics", flush=True)
 
     return metrics
 '''
