@@ -1,3 +1,9 @@
+import subprocess, os as os
+_cudnn_lib = subprocess.check_output(
+    ['python3', '-c', 'import nvidia.cudnn, os; print(os.path.dirname(nvidia.cudnn.__file__))'],
+    text=True).strip() + '/lib'
+os.environ['LD_LIBRARY_PATH'] = f"{_cudnn_lib}:{os.environ.get('LD_LIBRARY_PATH', '')}"
+
 import subprocess, os, sys, shutil, yaml, urllib.request, zipfile, json
 import numpy as np
 
