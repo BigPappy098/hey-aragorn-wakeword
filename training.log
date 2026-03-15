@@ -49,15 +49,17 @@ INFO:__main__:Done
 
 [Preview] Generating 1 sample to preview pronunciation...
 Traceback (most recent call last):
-  File "/workspace/training/train.py", line 457, in <module>
+  File "/workspace/training/train.py", line 459, in <module>
     git_configure()
     ~~~~~~~~~~~~~^^
-  File "/workspace/training/train.py", line 104, in git_configure
-    subprocess.run(['git', 'config', 'user.email', 'runpod@training.bot'],
-    ~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/workspace/training/train.py", line 111, in git_configure
+    subprocess.run(['git', 'remote', 'set-url', 'origin',
+    ~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+                    f'https://{GITHUB_TOKEN}@github.com/{GITHUB_REPO}.git'],
+                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
                    check=True, capture_output=True)
                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
   File "/usr/lib/python3.13/subprocess.py", line 577, in run
     raise CalledProcessError(retcode, process.args,
                              output=stdout, stderr=stderr)
-subprocess.CalledProcessError: Command '['git', 'config', 'user.email', 'runpod@training.bot']' returned non-zero exit status 128.
+subprocess.CalledProcessError: Command '['git', 'remote', 'set-url', 'origin', 'https://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@github.com/BigPappy098/hey-aragorn-wakeword.git']' returned non-zero exit status 128.
