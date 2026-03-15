@@ -41,6 +41,7 @@ pip install --upgrade pip -q
 echo "[4/4] Installing Python packages..."
 pip install -q "tensorflow>=2.18.0"
 pip install -q numpy pyyaml mmap-ninja huggingface-hub soundfile librosa
+pip install -q torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cpu
 
 # GPU users: install cuDNN
 if python3 -c "import tensorflow as tf; exit(0 if tf.config.list_physical_devices('GPU') else 1)" 2>/dev/null; then
