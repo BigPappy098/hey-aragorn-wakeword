@@ -35,35 +35,29 @@ Training steps [default: 20000, better quality: 20000-30000]:   → Training ste
 [Cleanup] Done.
 📂 No real recordings found in real_recordings/
 Would you like to upload real recordings to GitHub first? [y/n]: Cloning into 'microWakeWord'...
-Traceback (most recent call last):
-  File "<frozen runpy>", line 198, in _run_module_as_main
-  File "<frozen runpy>", line 88, in _run_code
-  File "/root/wakeword-training/piper-sample-generator/piper_sample_generator/__main__.py", line 16, in <module>
-    from piper import PiperVoice, SynthesisConfig
-ModuleNotFoundError: No module named 'piper'
+DEBUG:__main__:Loading piper-sample-generator/models/en_US-libritts_r-medium.pt
+INFO:__main__:Successfully loaded the model
+DEBUG:__main__:Batch 1/1 complete
+INFO:__main__:Done
 📢 Skipping real recordings — using 100% synthetic samples.
 
 [Step 3] Cloning microWakeWord + piper-sample-generator...
 ✅ Repos ready
-[dep] PyTorch not found — installing CPU-only version...
 
 [Step 4] Downloading Piper model...
 ✅ Piper model ready
 
 [Preview] Generating 1 sample to preview pronunciation...
 Traceback (most recent call last):
-  File "/workspace/training/train.py", line 432, in <module>
-    subprocess.run([
-    ~~~~~~~~~~~~~~^^
-        sys.executable, '-m', 'piper_sample_generator',
-        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-        TARGET_WORD, '--max-samples', '1', '--batch-size', '1',
-        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-        '--model', model_path, '--output-dir', preview_dir
-        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-    ], text=True, env=piper_env, check=True)
-    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/workspace/training/train.py", line 457, in <module>
+    git_configure()
+    ~~~~~~~~~~~~~^^
+  File "/workspace/training/train.py", line 104, in git_configure
+    subprocess.run(['git', 'config', 'user.email', 'runpod@training.bot'],
+    ~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+                   check=True, capture_output=True)
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
   File "/usr/lib/python3.13/subprocess.py", line 577, in run
     raise CalledProcessError(retcode, process.args,
                              output=stdout, stderr=stderr)
-subprocess.CalledProcessError: Command '['/root/wakeword-training/venv/bin/python3', '-m', 'piper_sample_generator', 'hey_chung_us', '--max-samples', '1', '--batch-size', '1', '--model', 'piper-sample-generator/models/en_US-libritts_r-medium.pt', '--output-dir', '/tmp/preview_sample']' returned non-zero exit status 1.
+subprocess.CalledProcessError: Command '['git', 'config', 'user.email', 'runpod@training.bot']' returned non-zero exit status 128.
