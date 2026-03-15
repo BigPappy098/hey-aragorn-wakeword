@@ -401,6 +401,16 @@ if not os.path.exists('piper-sample-generator'):
         check=True)
 print("✅ Repos ready")
 
+# ── Ensure PyTorch is available (needed by piper-sample-generator) ───────────
+try:
+    import torch  # noqa: F401
+except ImportError:
+    print("[dep] PyTorch not found — installing CPU-only version...")
+    subprocess.run([sys.executable, '-m', 'pip', 'install', '-q',
+                    'torch', 'torchvision', 'torchaudio',
+                    '--index-url', 'https://download.pytorch.org/whl/cpu'],
+                   check=True)
+
 # ── Step 4: Piper voice model ─────────────────────────────────────────────────
 print("\n[Step 4] Downloading Piper model...")
 os.makedirs('piper-sample-generator/models', exist_ok=True)
