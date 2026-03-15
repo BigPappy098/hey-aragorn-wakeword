@@ -79,7 +79,7 @@ if _os.path.isfile(_env_file):
             if _line and not _line.startswith('#') and '=' in _line:
                 _key, _, _val = _line.partition('=')
                 _key, _val = _key.strip(), _val.strip()
-                if _key and _key not in _os.environ:  # don't override explicit env vars
+                if _key and (_key not in _os.environ or not _os.environ[_key]):
                     _os.environ[_key] = _os.path.expanduser(_val)
 
 # ── Normal imports ────────────────────────────────────────────────────────────
@@ -478,14 +478,9 @@ if preview_files:
     subprocess.run(['git', 'add', preview_dest], check=True, cwd=REPO_ROOT)
     subprocess.run(['git', 'commit', '-m',
                     f'Preview sample: {TARGET_WORD}'], check=True, cwd=REPO_ROOT)
-    # Push to feature branch (main may be protected)
-    push_branch = os.environ.get('GIT_PUSH_BRANCH', 'main')
-    push_result = subprocess.run(['git', 'push', 'origin', f'HEAD:{push_branch}'], cwd=REPO_ROOT)
-    if push_result.returncode == 0:
-        print(f"\n🔊 Preview pushed to GitHub!")
-        print(f"   Go to: https://github.com/{GITHUB_REPO}/blob/{push_branch}/{preview_dest}")
-    else:
-        print(f"\n⚠️  Push failed (branch may be protected). Preview committed locally.")
+    subprocess.run(['git', 'push', 'origin', 'main'], check=True, cwd=REPO_ROOT)
+    print(f"\n🔊 Preview pushed to GitHub!")
+    print(f"   Go to: https://github.com/{GITHUB_REPO}/blob/main/{preview_dest}")
     print(f"   Download the .wav file and play it to check pronunciation.\n")
     while True:
         answer = prompt("Does the pronunciation sound correct? [y/n]: ", default='')
@@ -952,12 +947,8 @@ git_configure()
 subprocess.run(['git', 'add', MODEL_DEST, JSON_DEST], check=True, cwd=REPO_ROOT)
 subprocess.run(['git', 'commit', '-m',
                 f'Trained model: {TARGET_WORD} ({size_kb:.1f} KB)'], check=True, cwd=REPO_ROOT)
-push_branch = os.environ.get('GIT_PUSH_BRANCH', 'main')
-push_result = subprocess.run(['git', 'push', 'origin', f'HEAD:{push_branch}'], cwd=REPO_ROOT)
-if push_result.returncode != 0:
-    print(f"\n⚠️  Push failed (branch may be protected). Model committed locally.")
-    print(f"   You can push manually: git push origin HEAD:{push_branch}")
+subprocess.run(['git', 'push', 'origin', 'main'], check=True, cwd=REPO_ROOT)
 
 print(f"\n🎉 Done! Model + JSON committed to {GITHUB_REPO}/models/")
 print(f"   ESPHome URL: https://raw.githubusercontent.com/"
-      f"{GITHUB_REPO}/{push_branch}/models/{TARGET_WORD}.json")
+      f"{GITHUB_REPO}/main/models/{TARGET_WORD}.json")
