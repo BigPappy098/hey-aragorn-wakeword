@@ -155,7 +155,7 @@ GITHUB_REPO  = os.environ.get('GITHUB_REPO', '')
 GITHUB_TOKEN = os.environ.get('GITHUB_TOKEN', '')
 
 BASE = os.environ.get('WORK_DIR', '/workspace/training')
-REPO_ROOT = os.environ.get('REPO_ROOT', '/workspace')
+REPO_ROOT = os.environ.get('REPO_ROOT', '/workspace/training')
 os.chdir(BASE)
 
 # ── Clean up previous training data (keep downloads to save time) ────────────
