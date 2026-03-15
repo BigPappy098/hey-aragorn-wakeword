@@ -49,7 +49,7 @@ The training script pushes your finished model back to your GitHub repo. It need
 
 | Setting | Value |
 |---|---|
-| Template | `tensorflow/tensorflow:2.18.0-gpu` |
+| Template | `tensorflow/tensorflow:latest-gpu` (or a specific version like `2.21.0-gpu`) |
 | GPU | RTX 4090 (recommended) or any NVIDIA GPU |
 | Volume | 150 GB network volume mounted at `/workspace` |
 
