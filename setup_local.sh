@@ -13,9 +13,22 @@ sudo apt-get update -qq
 sudo apt-get install -y -qq python3 python3-pip python3-venv git wget unzip ffmpeg
 
 # ── Working directory ────────────────────────────────────────────────────────
-WORK_DIR="${1:-$HOME/wakeword-training}"
+if [ -n "$1" ]; then
+    WORK_DIR="$1"
+else
+    DEFAULT_DIR="$(pwd)"
+    printf "[2/4] Where should the training data go?\n"
+    printf "  Press Enter for current directory: %s\n" "$DEFAULT_DIR"
+    printf "  Or type a path: "
+    read -r USER_DIR
+    if [ -z "$USER_DIR" ]; then
+        WORK_DIR="$DEFAULT_DIR"
+    else
+        WORK_DIR="$USER_DIR"
+    fi
+fi
 mkdir -p "$WORK_DIR"
-echo "[2/4] Working directory: $WORK_DIR"
+echo "  Working directory: $WORK_DIR"
 
 # ── Python venv ──────────────────────────────────────────────────────────────
 echo "[3/4] Creating Python virtual environment..."
