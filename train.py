@@ -326,6 +326,22 @@ def validate_nonstreaming(config, data_processor, model, test_set):
         features_length=config["spectrogram_length"],
         truncation_strategy="truncate_start",
     )
+
+    print(f"[patch] get_data returned: fingerprints type={type(testing_fingerprints).__name__}, "
+          f"shape={getattr(testing_fingerprints, 'shape', 'no shape')}, "
+          f"dtype={getattr(testing_fingerprints, 'dtype', 'no dtype')}")
+    print(f"[patch] ground_truth type={type(testing_ground_truth).__name__}, "
+          f"shape={getattr(testing_ground_truth, 'shape', 'no shape')}")
+    if hasattr(testing_fingerprints, 'shape') and len(testing_fingerprints.shape) < 3:
+        print(f"[patch] WARNING: fingerprints is {len(testing_fingerprints.shape)}D, expected 3D (N, {config['spectrogram_length']}, num_features)")
+        print(f"[patch] First 5 values: {testing_fingerprints.flat[:5] if hasattr(testing_fingerprints, 'flat') else testing_fingerprints[:5]}")
+    # Also inspect the model's expected input shape
+    try:
+        inp = model.input_shape if hasattr(model, 'input_shape') else model.inputs[0].shape
+        print(f"[patch] Model input_shape: {inp}")
+    except Exception as e:
+        print(f"[patch] Could not get model input_shape: {e}")
+
     testing_ground_truth = testing_ground_truth.reshape(-1, 1)
 
     model.reset_metrics()
