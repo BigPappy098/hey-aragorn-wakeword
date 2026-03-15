@@ -226,11 +226,36 @@ def _batched_evaluate(model, data, labels, batch_size):
             batch_data = data[start:end]
             batch_labels = labels[start:end]
         model.test_on_batch(batch_data, batch_labels)
-    # Read accumulated metrics from model
-    result = {}
+    # Read accumulated metrics from model — use flexible name lookup
+    raw = {}
     for m in model.metrics:
-        val = m.result()
-        result[m.name] = val
+        raw[m.name] = m.result()
+    # Print available metric names for debugging on first call
+    if not hasattr(_batched_evaluate, "_logged"):
+        print(f"[patch] Available metric names: {list(raw.keys())}")
+        _batched_evaluate._logged = True
+    # Build result dict with canonical names, trying common Keras 3 variants
+    _ALIASES = {
+        "accuracy": ["accuracy", "binary_accuracy"],
+        "loss": ["loss", "binary_crossentropy"],
+        "recall": ["recall", "recall_1"],
+        "precision": ["precision", "precision_1"],
+        "auc": ["auc", "auc_1"],
+        "tp": ["tp", "true_positives"],
+        "fp": ["fp", "false_positives"],
+        "tn": ["tn", "true_negatives"],
+        "fn": ["fn", "false_negatives"],
+    }
+    result = {}
+    for canonical, aliases in _ALIASES.items():
+        for alias in aliases:
+            if alias in raw:
+                result[canonical] = raw[alias]
+                break
+    # Also include any keys not yet mapped (pass-through)
+    for k, v in raw.items():
+        if k not in result:
+            result[k] = v
     return result
 
 def validate_nonstreaming(config, data_processor, model, test_set):
