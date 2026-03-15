@@ -433,8 +433,10 @@ from microwakeword.audio.clips import Clips
 from microwakeword.audio.spectrograms import SpectrogramGeneration
 from mmap_ninja.ragged import RaggedMmap
 
-MMAP_OUT = 'generated_augmented_features/training/wakeword_mmap'
-os.makedirs(os.path.dirname(MMAP_OUT), exist_ok=True)
+MMAP_TRAIN = 'generated_augmented_features/training/wakeword_mmap'
+MMAP_TEST  = 'generated_augmented_features/testing/wakeword_mmap'
+os.makedirs(os.path.dirname(MMAP_TRAIN), exist_ok=True)
+os.makedirs(os.path.dirname(MMAP_TEST),  exist_ok=True)
 
 clips_obj = Clips(input_directory='generated_samples', file_pattern='*.wav',
                   max_clip_duration_s=None, remove_silence=False,
@@ -454,14 +456,25 @@ augmenter = Augmentation(
 )
 spectrograms = SpectrogramGeneration(clips=clips_obj, augmenter=augmenter,
                                      slide_frames=10, step_ms=10)
+
+print("  Writing train split...")
 RaggedMmap.from_generator(
-    out_dir=MMAP_OUT,
+    out_dir=MMAP_TRAIN,
     sample_generator=spectrograms.spectrogram_generator(split='train', repeat=2),
     batch_size=100, verbose=True
 )
-mmap = RaggedMmap(MMAP_OUT)
-assert len(mmap) > 0, '❌ mmap is empty'
-print(f"✅ {len(mmap)} spectrograms saved")
+print("  Writing test split...")
+RaggedMmap.from_generator(
+    out_dir=MMAP_TEST,
+    sample_generator=spectrograms.spectrogram_generator(split='test', repeat=1),
+    batch_size=100, verbose=True
+)
+
+mmap_tr = RaggedMmap(MMAP_TRAIN)
+mmap_te = RaggedMmap(MMAP_TEST)
+assert len(mmap_tr) > 0, '❌ train mmap is empty'
+assert len(mmap_te) > 0, '❌ test mmap is empty — increase NUM_SAMPLES'
+print(f"✅ {len(mmap_tr)} train | {len(mmap_te)} test spectrograms saved")
 
 # ── Step 10: Negative datasets ────────────────────────────────────────────────
 print("\n[Step 10] Downloading negative datasets...")
@@ -509,11 +522,18 @@ config = {
     'train_dir': 'trained_models/wakeword',
     'spectrogram_length': 204,
     'stride': 3,
-    'features': [{
-        'features_dir': 'generated_augmented_features',
-        'sampling_weight': 2.0, 'penalty_weight': 1.0, 'truth': True,
-        'truncation_strategy': 'truncate_start', 'type': 'mmap'
-    }] + neg_features,
+    'features': [
+        {   # positive train — used during training
+            'features_dir': 'generated_augmented_features',
+            'sampling_weight': 2.0, 'penalty_weight': 1.0, 'truth': True,
+            'truncation_strategy': 'truncate_start', 'type': 'mmap'
+        },
+        {   # positive test — eval only (sampling_weight=0 keeps it out of training)
+            'features_dir': 'generated_augmented_features',
+            'sampling_weight': 0.0, 'penalty_weight': 1.0, 'truth': True,
+            'truncation_strategy': 'split', 'type': 'mmap'
+        },
+    ] + neg_features,
     'training_steps': [TRAINING_STEPS],
     'positive_class_weight': [1],
     'negative_class_weight': [20],
