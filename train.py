@@ -802,6 +802,17 @@ if os.path.exists(hf_cache):
     shutil.rmtree(hf_cache)
 print("✅ Negative datasets ready")
 
+# ── Detect GPU early (needed for batch_size in config) ────────────────────────
+_has_gpu = False
+try:
+    _gpu_probe = subprocess.run(
+        [sys.executable, '-c',
+         'import tensorflow as tf; print(len(tf.config.list_physical_devices("GPU")))'],
+        text=True, capture_output=True, timeout=60)
+    _has_gpu = _gpu_probe.stdout.strip() not in ('0', '')
+except Exception:
+    pass
+
 # ── Step 11: Training config ──────────────────────────────────────────────────
 print("\n[Step 11] Writing training config...")
 neg_dirs = sorted([d for d in os.listdir('negative_datasets')
@@ -845,7 +856,7 @@ config = {
     'positive_class_weight': [1],
     'negative_class_weight': [20],
     'learning_rates': [0.001],
-    'batch_size': 128,
+    'batch_size': 32 if not _has_gpu else 128,
     'eval_step_interval': 500,
     'clip_duration_ms': 1500,
     'target_minimization': 0.9,
@@ -854,7 +865,7 @@ config = {
 }
 with open('training_parameters.yaml', 'w') as f:
     yaml.dump(config, f, default_flow_style=False)
-print("✅ Config written")
+print(f"✅ Config written (batch_size={config['batch_size']}, GPU={'yes' if _has_gpu else 'no'})")
 
 # ── Step 12: Train ────────────────────────────────────────────────────────────
 print(f"\n[Step 12] Training (~{max(1, TRAINING_STEPS // 10000)} hour(s))...")
@@ -869,17 +880,6 @@ train_env = {
 }
 if _cudnn_lib:
     train_env['LD_LIBRARY_PATH'] = f"{_cudnn_lib}:{os.environ.get('LD_LIBRARY_PATH', '')}"
-
-# Detect GPU availability
-_has_gpu = False
-try:
-    _gpu_probe = subprocess.run(
-        [sys.executable, '-c',
-         'import tensorflow as tf; print(len(tf.config.list_physical_devices("GPU")))'],
-        text=True, capture_output=True, timeout=60, env=train_env)
-    _has_gpu = _gpu_probe.stdout.strip() not in ('0', '')
-except Exception:
-    pass
 
 if _has_gpu:
     # Verify cuDNN availability before launching the long training run
