@@ -43,7 +43,7 @@ pip install -q "tensorflow>=2.18.0"
 pip install -q numpy pyyaml mmap-ninja huggingface-hub soundfile librosa
 pip install -q torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cpu
 pip install -q piper-tts
-pip install -q "audiomentations==0.33.0" webrtcvad
+pip install -q "audiomentations>=0.35.0" webrtcvad
 
 # GPU users: install cuDNN
 if python3 -c "import tensorflow as tf; exit(0 if tf.config.list_physical_devices('GPU') else 1)" 2>/dev/null; then
