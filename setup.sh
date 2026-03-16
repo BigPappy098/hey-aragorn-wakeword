@@ -1,34 +1,29 @@
 #!/usr/bin/env bash
-# setup.sh — RunPod manual setup (if not using bootstrap.sh)
-# Creates a venv and installs base dependencies so train.py can run.
+# setup.sh — Install base dependencies for train.py
+# Works on RunPod (direct pip) and local machines (auto-creates venv if needed).
 set -e
 
-echo "=== microWakeWord RunPod Setup ==="
+echo "=== microWakeWord Setup ==="
 
 WORK_DIR="${WORK_DIR:-/workspace/training}"
 cd "$WORK_DIR"
 
-# ── Create venv (required on newer images with externally-managed Python) ────
-if [ ! -d "$WORK_DIR/venv" ]; then
-    echo "[1/2] Creating Python virtual environment..."
-    python3 -m venv "$WORK_DIR/venv"
+# Try direct pip first (works on RunPod / Docker as root).
+# Fall back to venv if pip is blocked (externally-managed Python).
+if pip install --upgrade pip -q 2>/dev/null && \
+   pip install -q "tensorflow>=2.18.0" numpy pyyaml mmap-ninja huggingface-hub 2>/dev/null; then
+    echo "Base dependencies installed (system Python)."
 else
-    echo "[1/2] Venv already exists, skipping creation."
+    echo "System pip blocked — creating venv..."
+    python3 -m venv "$WORK_DIR/venv"
+    source "$WORK_DIR/venv/bin/activate"
+    pip install --upgrade pip -q
+    pip install -q "tensorflow>=2.18.0" numpy pyyaml mmap-ninja huggingface-hub
+    echo "Base dependencies installed (venv)."
+    echo ""
+    echo "NOTE: Activate the venv before running train.py:"
+    echo "  source $WORK_DIR/venv/bin/activate"
 fi
 
-source "$WORK_DIR/venv/bin/activate"
-pip install --upgrade pip -q
-
-# ── Install base dependencies that train.py needs at import time ─────────────
-echo "[2/2] Installing base Python packages..."
-pip install -q "tensorflow>=2.18.0" numpy pyyaml mmap-ninja huggingface-hub
-
 echo ""
-echo "============================================"
-echo "  Setup complete!"
-echo "============================================"
-echo ""
-echo "Next steps:"
-echo "  source $WORK_DIR/venv/bin/activate"
-echo "  python train.py"
-echo ""
+echo "Setup complete! Run: python train.py"
