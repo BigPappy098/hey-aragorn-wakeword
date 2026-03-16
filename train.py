@@ -100,12 +100,34 @@ def prompt(msg, default=None, valid_fn=None):
 
 
 def git_push(branch='main'):
-    """Pull remote changes then push to GitHub."""
-    # Pull first to incorporate any remote commits (e.g. PR merges)
+    """Sync with remote then push to GitHub."""
+    # Fetch latest remote state
     subprocess.run(
+        ['git', 'fetch', 'origin', branch],
+        cwd=REPO_ROOT, capture_output=True, text=True
+    )
+    # Try a normal pull --rebase first
+    pull = subprocess.run(
         ['git', 'pull', '--rebase', 'origin', branch],
         cwd=REPO_ROOT, capture_output=True, text=True
     )
+    if pull.returncode != 0:
+        # Abort any failed rebase
+        subprocess.run(['git', 'rebase', '--abort'],
+                       cwd=REPO_ROOT, capture_output=True, text=True)
+        # Stash our commit, reset to remote, then re-apply
+        print("  [git] Histories diverged — rebasing onto remote...")
+        subprocess.run(['git', 'stash'], cwd=REPO_ROOT, capture_output=True)
+        subprocess.run(['git', 'reset', '--hard', f'origin/{branch}'],
+                       cwd=REPO_ROOT, capture_output=True)
+        subprocess.run(['git', 'stash', 'pop'], cwd=REPO_ROOT,
+                       capture_output=True)
+        # Re-commit any unstaged changes from stash pop
+        subprocess.run(['git', 'add', '-A'], cwd=REPO_ROOT, capture_output=True)
+        subprocess.run(
+            ['git', 'commit', '--allow-empty', '-m', 'Re-apply local changes on updated remote'],
+            cwd=REPO_ROOT, capture_output=True, text=True
+        )
     result = subprocess.run(
         ['git', 'push', 'origin', branch],
         cwd=REPO_ROOT, capture_output=True, text=True
@@ -113,7 +135,6 @@ def git_push(branch='main'):
     if result.returncode != 0:
         print(f"\n❌ git push failed (exit {result.returncode})")
         if result.stderr:
-            # Strip the token from error output for safety
             safe_err = result.stderr.replace(GITHUB_TOKEN, '***')
             print(f"   stderr: {safe_err.strip()}")
         if result.stdout:
