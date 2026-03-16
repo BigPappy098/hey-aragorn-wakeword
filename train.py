@@ -99,6 +99,29 @@ def prompt(msg, default=None, valid_fn=None):
     return raw
 
 
+def git_push(branch='main'):
+    """Push to GitHub with error details shown on failure."""
+    result = subprocess.run(
+        ['git', 'push', 'origin', branch],
+        cwd=REPO_ROOT, capture_output=True, text=True
+    )
+    if result.returncode != 0:
+        print(f"\n❌ git push failed (exit {result.returncode})")
+        if result.stderr:
+            # Strip the token from error output for safety
+            safe_err = result.stderr.replace(GITHUB_TOKEN, '***')
+            print(f"   stderr: {safe_err.strip()}")
+        if result.stdout:
+            print(f"   stdout: {result.stdout.strip()}")
+        print("\n   Common causes:")
+        print("   • Token expired or lacks 'repo' scope — generate a new one at:")
+        print("     https://github.com/settings/tokens")
+        print("   • GITHUB_REPO is wrong — should be 'User/repo-name'")
+        print(f"   • Current token starts with: {GITHUB_TOKEN[:4]}...")
+        sys.exit(1)
+    print(f"  ✅ Pushed to {branch}")
+
+
 def git_configure():
     """Idempotent git identity + remote setup.  Clones the repo if needed."""
     subprocess.run(['git', 'config', '--global', 'safe.directory', '*'],
@@ -153,6 +176,18 @@ print(f"  → Training steps: {TRAINING_STEPS}")
 print()
 GITHUB_REPO  = os.environ.get('GITHUB_REPO', '')
 GITHUB_TOKEN = os.environ.get('GITHUB_TOKEN', '')
+
+if not GITHUB_TOKEN:
+    print("❌ ERROR: GITHUB_TOKEN is empty or not set.")
+    print("   Check your .env file has:  GITHUB_TOKEN=ghp_xxxxxxxxxxxx")
+    print("   Make sure there are no spaces around the '=' sign.")
+    sys.exit(1)
+if not GITHUB_REPO:
+    print("❌ ERROR: GITHUB_REPO is empty or not set.")
+    print("   Check your .env file has:  GITHUB_REPO=YourUser/YourRepo")
+    sys.exit(1)
+print(f"  → GitHub repo: {GITHUB_REPO}")
+print(f"  → GitHub token: {GITHUB_TOKEN[:4]}...{GITHUB_TOKEN[-4:]} ({len(GITHUB_TOKEN)} chars)")
 
 BASE = os.environ.get('WORK_DIR', '/workspace/training')
 REPO_ROOT = os.environ.get('REPO_ROOT', '/workspace/training')
@@ -478,7 +513,7 @@ if preview_files:
     subprocess.run(['git', 'add', preview_dest], check=True, cwd=REPO_ROOT)
     subprocess.run(['git', 'commit', '-m',
                     f'Preview sample: {TARGET_WORD}'], check=True, cwd=REPO_ROOT)
-    subprocess.run(['git', 'push', 'origin', 'main'], check=True, cwd=REPO_ROOT)
+    git_push()
     print(f"\n🔊 Preview pushed to GitHub!")
     print(f"   Go to: https://github.com/{GITHUB_REPO}/blob/main/{preview_dest}")
     print(f"   Download the .wav file and play it to check pronunciation.\n")
@@ -947,7 +982,7 @@ git_configure()
 subprocess.run(['git', 'add', MODEL_DEST, JSON_DEST], check=True, cwd=REPO_ROOT)
 subprocess.run(['git', 'commit', '-m',
                 f'Trained model: {TARGET_WORD} ({size_kb:.1f} KB)'], check=True, cwd=REPO_ROOT)
-subprocess.run(['git', 'push', 'origin', 'main'], check=True, cwd=REPO_ROOT)
+git_push()
 
 print(f"\n🎉 Done! Model + JSON committed to {GITHUB_REPO}/models/")
 print(f"   ESPHome URL: https://raw.githubusercontent.com/"
