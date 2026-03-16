@@ -1,6 +1,4 @@
 .env
-*.log
-training.log
 __pycache__/
 venv/
 
