@@ -215,8 +215,9 @@ if not GITHUB_REPO:
 print(f"  → GitHub repo: {GITHUB_REPO}")
 print(f"  → GitHub token: {GITHUB_TOKEN[:4]}...{GITHUB_TOKEN[-4:]} ({len(GITHUB_TOKEN)} chars)")
 
-BASE = os.environ.get('WORK_DIR', '/workspace/training')
-REPO_ROOT = os.environ.get('REPO_ROOT', '/workspace/training')
+_SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
+BASE = os.environ.get('WORK_DIR', _SCRIPT_DIR)
+REPO_ROOT = os.environ.get('REPO_ROOT', _SCRIPT_DIR)
 os.chdir(BASE)
 
 # ── Clean up previous training data (keep downloads to save time) ────────────
