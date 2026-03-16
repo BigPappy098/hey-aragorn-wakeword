@@ -149,6 +149,10 @@ def git_configure():
     else:
         subprocess.run(['git', 'remote', 'set-url', 'origin', repo_url],
                        check=True, capture_output=True, cwd=REPO_ROOT)
+    # Remove any accidentally tracked log files (they may contain secrets)
+    subprocess.run(['git', 'rm', '--cached', '--ignore-unmatch', '-r',
+                    'training.log', '*.log'],
+                   capture_output=True, cwd=REPO_ROOT)
 
 import subprocess                       # re-import at module scope for clarity
 
