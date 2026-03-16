@@ -482,6 +482,7 @@ try:
 except ImportError:
     print("[dep] audiomentations >=0.33.0 not found — installing...")
     subprocess.run([sys.executable, '-m', 'pip', 'install', '-q',
+                    '--upgrade', '--force-reinstall',
                     'audiomentations==0.33.0', 'webrtcvad'],
                    check=True)
     import importlib
