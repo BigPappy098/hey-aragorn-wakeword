@@ -606,8 +606,11 @@ print(f"✅ {synth_count} synthetic samples generated")
 # ── Step 7b: Process + augment real recordings ───────────────────────────────
 if USING_REAL:
     print(f"\n[Step 7b] Processing real recordings → target {REAL_TARGET} augmented clips...")
-    subprocess.run(['apt-get', 'install', '-y', '-q', 'ffmpeg'],
-                   check=True, capture_output=True)
+    if not shutil.which('ffmpeg'):
+        apt_cmd = ['apt-get', 'install', '-y', '-q', 'ffmpeg']
+        if os.getuid() != 0:
+            apt_cmd = ['sudo'] + apt_cmd
+        subprocess.run(apt_cmd, check=True, capture_output=True)
     subprocess.run([sys.executable, '-m', 'pip', 'install', '-q', 'soundfile', 'librosa'],
                    check=True, capture_output=True)
     import soundfile as sf
