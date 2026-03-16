@@ -489,6 +489,13 @@ except ImportError:
     import audiomentations
     importlib.reload(audiomentations)
 
+try:
+    import torchcodec  # noqa: F401
+except ImportError:
+    print("[dep] torchcodec not found — installing (needed by datasets for audio)...")
+    subprocess.run([sys.executable, '-m', 'pip', 'install', '-q', 'torchcodec'],
+                   check=True)
+
 # ── Step 4: Piper voice model ─────────────────────────────────────────────────
 print("\n[Step 4] Downloading Piper model...")
 os.makedirs('piper-sample-generator/models', exist_ok=True)
