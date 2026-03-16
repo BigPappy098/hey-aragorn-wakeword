@@ -13,9 +13,9 @@ You provide a phonetic wake word (like `hey_air_uh_gorn`), and this project gene
 | **Speed** | ~2 hrs for 20k steps | ~2 hrs (depends on GPU) | Very slow (hours–days) |
 | **Cost** | ~$1–2 per run | Free (your hardware) | Free |
 | **Best for** | No GPU at home | You have a dedicated GPU | Testing / iterating on config |
-| **Setup** | RunPod dashboard + SSH | `bash setup_local.sh` | `bash setup_local.sh` |
+| **Setup** | `bash setup.sh` | `bash setup_local.sh` | `bash setup_local.sh` |
 
-Any NVIDIA GPU will speed up training compared to CPU-only. Larger GPUs (20+ GB VRAM like RTX 3090/4090) can use the default batch size of 128. Smaller GPUs (8–12 GB) will work too — TensorFlow automatically adjusts, or you can reduce `batch_size` in the generated `training_parameters.yaml` if you hit out-of-memory errors. CPU-only mode works but is extremely slow — useful for verifying your setup or testing small runs.
+Any NVIDIA GPU will speed up training compared to CPU-only. Larger GPUs (20+ GB VRAM like RTX 3090/4090) can use the default batch size of 128. Smaller GPUs (8–12 GB) will work too — TensorFlow automatically adjusts, or you can reduce `batch_size` in the generated `training_parameters.yaml` if you hit out-of-memory errors. CPU-only mode automatically reduces batch size to 32 to avoid out-of-memory crashes.
 
 ---
 
@@ -86,12 +86,8 @@ tmux keeps your training running if your SSH connection drops. To detach later: 
 ```bash
 git clone https://github.com/YOURUSERNAME/YOURREPO.git /workspace/training
 cd /workspace/training
-python setup.sh
+bash setup.sh
 ```
-
-> Yes, `setup.sh` is a Python script despite the `.sh` extension. Run it with `python`, not `bash`.
-
-You should see two green checkmarks when setup completes.
 
 ### 5. Start training
 
@@ -254,8 +250,8 @@ When training completes, two files are pushed to your GitHub repo:
 
 ```
 models/
-  hey_air_uh_gorn.tflite    ← the trained model (~100 KB)
-  hey_air_uh_gorn.json      ← ESPHome metadata
+  hey_air_uh_gorn.tflite    <- the trained model (~100 KB)
+  hey_air_uh_gorn.json      <- ESPHome metadata
 ```
 
 The script prints the exact URL to use in ESPHome:
@@ -303,6 +299,10 @@ python3 -c "import tensorflow as tf; print(tf.config.list_physical_devices('GPU'
 
 On RunPod this is handled by the Docker template. On a local machine you may need to install CUDA yourself.
 
+### Out of memory (OOM) crash
+
+On CPU, batch size is automatically reduced to 32. On GPU, the default is 128. If you still hit OOM, edit `training_parameters.yaml` after it's generated and reduce `batch_size` to 64 or 32, then re-run from Step 12 onward.
+
 ### ZeroDivisionError at the end of training
 
 This is a known bug in the upstream microWakeWord evaluation code. **It does not affect your model.** Training completed successfully and your `.tflite` file is fine. The fix is already patched in `train.py`.
@@ -325,13 +325,13 @@ find /workspace/training -name "*.tflite"
 
 ```
 /
-├── train.py              ← Main training script (interactive, does everything)
-├── setup.sh              ← RunPod setup (Python script — run with `python`)
-├── setup_local.sh        ← Local/VPS setup (bash script — run with `bash`)
-├── .env.example          ← Template for local env vars
-├── .gitignore            ← Keeps .env out of git
-├── real_recordings/      ← Drop your own voice clips here (optional)
-├── models/               ← Trained models are saved and pushed here
+├── train.py              <- Main training script (interactive, does everything)
+├── setup.sh              <- RunPod setup (bash — installs base deps)
+├── setup_local.sh        <- Local/VPS setup (bash — creates venv + installs deps)
+├── .env.example          <- Template for local env vars
+├── .gitignore            <- Keeps secrets, logs, and training artifacts out of git
+├── real_recordings/      <- Drop your own voice clips here (optional)
+├── models/               <- Trained models are saved and pushed here
 │   ├── *.tflite
 │   └── *.json
 └── README.md

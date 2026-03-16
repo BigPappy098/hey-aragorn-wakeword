@@ -265,6 +265,9 @@ subprocess.run(['git', 'clone', 'https://github.com/kahrendt/microWakeWord.git']
                check=True)
 subprocess.run([sys.executable, '-m', 'pip', 'install', '-q', '-e', 'microWakeWord'],
                check=True)
+# TensorBoard is required by tf.summary.scalar used during training
+subprocess.run([sys.executable, '-m', 'pip', 'install', '-q', 'tensorboard'],
+               check=True)
 
 # Patch: fix validate_nonstreaming for Keras 3 / TF 2.18 compatibility.
 # In Keras 3, model.evaluate(return_dict=True) may use different metric key
@@ -488,6 +491,13 @@ except ImportError:
     import importlib
     import audiomentations
     importlib.reload(audiomentations)
+
+try:
+    import torchcodec  # noqa: F401
+except ImportError:
+    print("[dep] torchcodec not found — installing (needed by datasets for audio)...")
+    subprocess.run([sys.executable, '-m', 'pip', 'install', '-q', 'torchcodec'],
+                   check=True)
 
 # ── Step 4: Piper voice model ─────────────────────────────────────────────────
 print("\n[Step 4] Downloading Piper model...")
@@ -792,6 +802,20 @@ if os.path.exists(hf_cache):
     shutil.rmtree(hf_cache)
 print("✅ Negative datasets ready")
 
+# ── Detect GPU early (needed for batch_size in config) ────────────────────────
+_has_gpu = False
+_gpu_env = {**os.environ}
+if _cudnn_lib:
+    _gpu_env['LD_LIBRARY_PATH'] = f"{_cudnn_lib}:{os.environ.get('LD_LIBRARY_PATH', '')}"
+try:
+    _gpu_probe = subprocess.run(
+        [sys.executable, '-c',
+         'import tensorflow as tf; print(len(tf.config.list_physical_devices("GPU")))'],
+        text=True, capture_output=True, timeout=60, env=_gpu_env)
+    _has_gpu = _gpu_probe.stdout.strip() not in ('0', '')
+except Exception:
+    pass
+
 # ── Step 11: Training config ──────────────────────────────────────────────────
 print("\n[Step 11] Writing training config...")
 neg_dirs = sorted([d for d in os.listdir('negative_datasets')
@@ -835,7 +859,7 @@ config = {
     'positive_class_weight': [1],
     'negative_class_weight': [20],
     'learning_rates': [0.001],
-    'batch_size': 128,
+    'batch_size': 32 if not _has_gpu else 128,
     'eval_step_interval': 500,
     'clip_duration_ms': 1500,
     'target_minimization': 0.9,
@@ -844,7 +868,7 @@ config = {
 }
 with open('training_parameters.yaml', 'w') as f:
     yaml.dump(config, f, default_flow_style=False)
-print("✅ Config written")
+print(f"✅ Config written (batch_size={config['batch_size']}, GPU={'yes' if _has_gpu else 'no'})")
 
 # ── Step 12: Train ────────────────────────────────────────────────────────────
 print(f"\n[Step 12] Training (~{max(1, TRAINING_STEPS // 10000)} hour(s))...")
@@ -859,17 +883,6 @@ train_env = {
 }
 if _cudnn_lib:
     train_env['LD_LIBRARY_PATH'] = f"{_cudnn_lib}:{os.environ.get('LD_LIBRARY_PATH', '')}"
-
-# Detect GPU availability
-_has_gpu = False
-try:
-    _gpu_probe = subprocess.run(
-        [sys.executable, '-c',
-         'import tensorflow as tf; print(len(tf.config.list_physical_devices("GPU")))'],
-        text=True, capture_output=True, timeout=60, env=train_env)
-    _has_gpu = _gpu_probe.stdout.strip() not in ('0', '')
-except Exception:
-    pass
 
 if _has_gpu:
     # Verify cuDNN availability before launching the long training run
@@ -942,7 +955,7 @@ result = subprocess.run([
     '--first_conv_filters', '32',
     '--first_conv_kernel_size', '5',
     '--stride', '3',
-], text=True, env=train_env)
+], text=True, env=train_env, stderr=subprocess.PIPE)
 
 MODEL_SRC = ('trained_models/wakeword/tflite_stream_state_internal_quant/'
              'stream_state_internal_quant.tflite')
@@ -956,6 +969,8 @@ if not os.path.exists(MODEL_SRC):
     if result.stderr:
         print("--- Last 4000 chars of stderr ---")
         print(result.stderr[-4000:])
+    elif result.returncode != 0:
+        print(f"   Process exited with code {result.returncode} (no stderr captured)")
     sys.exit(1)
 
 print("✅ Training complete")
