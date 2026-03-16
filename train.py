@@ -265,6 +265,9 @@ subprocess.run(['git', 'clone', 'https://github.com/kahrendt/microWakeWord.git']
                check=True)
 subprocess.run([sys.executable, '-m', 'pip', 'install', '-q', '-e', 'microWakeWord'],
                check=True)
+# TensorBoard is required by tf.summary.scalar used during training
+subprocess.run([sys.executable, '-m', 'pip', 'install', '-q', 'tensorboard'],
+               check=True)
 
 # Patch: fix validate_nonstreaming for Keras 3 / TF 2.18 compatibility.
 # In Keras 3, model.evaluate(return_dict=True) may use different metric key
