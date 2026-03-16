@@ -100,7 +100,12 @@ def prompt(msg, default=None, valid_fn=None):
 
 
 def git_push(branch='main'):
-    """Push to GitHub with error details shown on failure."""
+    """Pull remote changes then push to GitHub."""
+    # Pull first to incorporate any remote commits (e.g. PR merges)
+    subprocess.run(
+        ['git', 'pull', '--rebase', 'origin', branch],
+        cwd=REPO_ROOT, capture_output=True, text=True
+    )
     result = subprocess.run(
         ['git', 'push', 'origin', branch],
         cwd=REPO_ROOT, capture_output=True, text=True
@@ -149,10 +154,6 @@ def git_configure():
     else:
         subprocess.run(['git', 'remote', 'set-url', 'origin', repo_url],
                        check=True, capture_output=True, cwd=REPO_ROOT)
-    # Remove any accidentally tracked log files (they may contain secrets)
-    subprocess.run(['git', 'rm', '--cached', '--ignore-unmatch', '-r',
-                    'training.log', '*.log'],
-                   capture_output=True, cwd=REPO_ROOT)
 
 import subprocess                       # re-import at module scope for clarity
 
