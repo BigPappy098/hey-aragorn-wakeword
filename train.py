@@ -478,12 +478,12 @@ except ImportError:
 try:
     import audiomentations
     if not hasattr(audiomentations, 'AddColorNoise'):
-        raise ImportError("audiomentations too old, needs >=0.33.0")
+        raise ImportError("audiomentations too old, needs >=0.35.0")
 except ImportError:
-    print("[dep] audiomentations >=0.33.0 not found — installing...")
+    print("[dep] audiomentations >=0.35.0 not found — installing...")
     subprocess.run([sys.executable, '-m', 'pip', 'install', '-q',
                     '--upgrade', '--force-reinstall',
-                    'audiomentations==0.33.0', 'webrtcvad'],
+                    'audiomentations>=0.35.0', 'webrtcvad'],
                    check=True)
     import importlib
     import audiomentations
