@@ -476,12 +476,17 @@ except ImportError:
                    check=True)
 
 try:
-    import audiomentations  # noqa: F401
+    import audiomentations
+    if not hasattr(audiomentations, 'AddColorNoise'):
+        raise ImportError("audiomentations too old, needs >=0.33.0")
 except ImportError:
-    print("[dep] audiomentations not found — installing...")
+    print("[dep] audiomentations >=0.33.0 not found — installing...")
     subprocess.run([sys.executable, '-m', 'pip', 'install', '-q',
                     'audiomentations==0.33.0', 'webrtcvad'],
                    check=True)
+    import importlib
+    import audiomentations
+    importlib.reload(audiomentations)
 
 # ── Step 4: Piper voice model ─────────────────────────────────────────────────
 print("\n[Step 4] Downloading Piper model...")
