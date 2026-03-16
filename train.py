@@ -539,7 +539,27 @@ preview_dir = '/tmp/preview_sample'
 if os.path.exists(preview_dir):
     shutil.rmtree(preview_dir)
 os.makedirs(preview_dir)
-piper_env = {**os.environ, 'PYTHONPATH': os.path.abspath('piper-sample-generator')}
+# Detect CPU capability — older CPUs without AVX2 need conservative settings
+def _has_avx2():
+    try:
+        with open('/proc/cpuinfo', 'r') as f:
+            for line in f:
+                if line.startswith('flags'):
+                    return 'avx2' in line.split()
+    except OSError:
+        pass
+    return False
+
+HAS_AVX2 = _has_avx2()
+PIPER_BATCH_SIZE = 100 if HAS_AVX2 else 10
+if not HAS_AVX2:
+    print(f"  ⚠ CPU lacks AVX2 — using batch-size {PIPER_BATCH_SIZE} and safe kernel dispatch")
+
+piper_env = {
+    **os.environ,
+    'PYTHONPATH': os.path.abspath('piper-sample-generator'),
+    **({'ATEN_CPU_CAPABILITY': 'default'} if not HAS_AVX2 else {}),
+}
 subprocess.run([
     sys.executable, '-m', 'piper_sample_generator',
     TARGET_WORD, '--max-samples', '1', '--batch-size', '1',
@@ -577,7 +597,7 @@ if os.path.exists('generated_samples'):
 os.makedirs('generated_samples')
 subprocess.run([
     sys.executable, '-m', 'piper_sample_generator',
-    TARGET_WORD, '--max-samples', str(SYNTHETIC_COUNT), '--batch-size', '100',
+    TARGET_WORD, '--max-samples', str(SYNTHETIC_COUNT), '--batch-size', str(PIPER_BATCH_SIZE),
     '--model', model_path, '--output-dir', 'generated_samples'
 ], text=True, env=piper_env, check=True)
 synth_count = len([f for f in os.listdir('generated_samples') if f.endswith('.wav')])
