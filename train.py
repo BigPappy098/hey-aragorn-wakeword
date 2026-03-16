@@ -79,7 +79,7 @@ if _os.path.isfile(_env_file):
             if _line and not _line.startswith('#') and '=' in _line:
                 _key, _, _val = _line.partition('=')
                 _key, _val = _key.strip(), _val.strip()
-                if _key and _key not in _os.environ:  # don't override explicit env vars
+                if _key and (_key not in _os.environ or not _os.environ[_key]):
                     _os.environ[_key] = _os.path.expanduser(_val)
 
 # ── Normal imports ────────────────────────────────────────────────────────────
