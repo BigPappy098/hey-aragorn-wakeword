@@ -804,11 +804,14 @@ print("✅ Negative datasets ready")
 
 # ── Detect GPU early (needed for batch_size in config) ────────────────────────
 _has_gpu = False
+_gpu_env = {**os.environ}
+if _cudnn_lib:
+    _gpu_env['LD_LIBRARY_PATH'] = f"{_cudnn_lib}:{os.environ.get('LD_LIBRARY_PATH', '')}"
 try:
     _gpu_probe = subprocess.run(
         [sys.executable, '-c',
          'import tensorflow as tf; print(len(tf.config.list_physical_devices("GPU")))'],
-        text=True, capture_output=True, timeout=60)
+        text=True, capture_output=True, timeout=60, env=_gpu_env)
     _has_gpu = _gpu_probe.stdout.strip() not in ('0', '')
 except Exception:
     pass
@@ -952,7 +955,7 @@ result = subprocess.run([
     '--first_conv_filters', '32',
     '--first_conv_kernel_size', '5',
     '--stride', '3',
-], text=True, env=train_env)
+], text=True, env=train_env, stderr=subprocess.PIPE)
 
 MODEL_SRC = ('trained_models/wakeword/tflite_stream_state_internal_quant/'
              'stream_state_internal_quant.tflite')
@@ -966,6 +969,8 @@ if not os.path.exists(MODEL_SRC):
     if result.stderr:
         print("--- Last 4000 chars of stderr ---")
         print(result.stderr[-4000:])
+    elif result.returncode != 0:
+        print(f"   Process exited with code {result.returncode} (no stderr captured)")
     sys.exit(1)
 
 print("✅ Training complete")

@@ -1,1 +1,15 @@
 .env
+*.log
+training.log
+__pycache__/
+venv/
+
+# Large training artifacts (generated at runtime)
+generated_samples/
+generated_augmented_features/
+trained_models/
+training_parameters.yaml
+microWakeWord/
+piper-sample-generator/
+mit_rirs/
+negative_datasets/
