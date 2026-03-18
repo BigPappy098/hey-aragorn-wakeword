@@ -15,6 +15,8 @@ You provide a phonetic wake word (like `hey_air_uh_gorn`), and this project gene
 | **Best for** | No GPU at home | You have a dedicated GPU | Testing / iterating on config |
 | **Setup** | `bash setup.sh` | `bash setup_local.sh` | `bash setup_local.sh` |
 
+> **Testing on a low-spec machine?** The script auto-detects available RAM and GPU. On machines with < 12 GB RAM and no GPU, training is skipped by default to prevent freezing. Use `--dry-run` to validate the full pipeline without training, or `--force-train` to attempt training anyway.
+
 Any NVIDIA GPU will speed up training compared to CPU-only. Larger GPUs (20+ GB VRAM like RTX 3090/4090) can use the default batch size of 128. Smaller GPUs (8–12 GB) will work too — TensorFlow automatically adjusts, or you can reduce `batch_size` in the generated `training_parameters.yaml` if you hit out-of-memory errors. CPU-only mode automatically reduces batch size to 32 to avoid out-of-memory crashes.
 
 ---
@@ -92,7 +94,7 @@ bash setup.sh
 ### 5. Start training
 
 ```bash
-python train.py 2>&1 | tee training.log
+python -u train.py 2>&1 | tee training.log
 ```
 
 Jump to [Training Walkthrough](#training-walkthrough) below.
@@ -157,8 +159,10 @@ GITHUB_TOKEN=github_pat_xxxxxxxxxxxx
 
 ```bash
 source ~/wakeword-training/venv/bin/activate
-python3 train.py 2>&1 | tee training.log
+python3 -u train.py 2>&1 | tee training.log
 ```
+
+> **Tip:** The `-u` flag ensures interactive prompts display correctly when piping through `tee`.
 
 ---
 
@@ -217,6 +221,13 @@ From here, everything is automatic. The script will:
 ### Step 5: Training
 
 The model trains automatically. Progress is logged every 500 steps with metrics like accuracy, recall, precision, and loss.
+
+**CLI flags:**
+
+| Flag | Effect |
+|---|---|
+| `--dry-run` | Validate the full pipeline (sample generation, augmentation, config) but skip model training. Useful for testing on low-spec machines. |
+| `--force-train` | Override the automatic low-resource detection and attempt training even on machines with limited RAM / no GPU. |
 
 **Estimated training times (20,000 steps):**
 
@@ -299,9 +310,15 @@ python3 -c "import tensorflow as tf; print(tf.config.list_physical_devices('GPU'
 
 On RunPod this is handled by the Docker template. On a local machine you may need to install CUDA yourself.
 
+### Machine freezes during training
+
+On machines with < 12 GB RAM and no GPU, the training step can consume all available memory and freeze the system. The script detects this automatically and skips training. Use `--dry-run` to validate the pipeline, then run the actual training on a GPU machine.
+
+If you want to force training on a low-spec machine: `python3 -u train.py --force-train`. The script will reduce batch size to 16 and limit TensorFlow threads, but expect very slow performance.
+
 ### Out of memory (OOM) crash
 
-On CPU, batch size is automatically reduced to 32. On GPU, the default is 128. If you still hit OOM, edit `training_parameters.yaml` after it's generated and reduce `batch_size` to 64 or 32, then re-run from Step 12 onward.
+On CPU, batch size is automatically reduced to 32 (or 16 on low-resource machines). On GPU, the default is 128. If you still hit OOM, edit `training_parameters.yaml` after it's generated and reduce `batch_size` to 64 or 32, then re-run from Step 12 onward.
 
 ### ZeroDivisionError at the end of training
 

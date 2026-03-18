@@ -86,6 +86,24 @@ if _os.path.isfile(_env_file):
 import os, sys, shutil, yaml, urllib.request, zipfile, json
 import numpy as np
 
+# ── CLI flags ────────────────────────────────────────────────────────────────
+DRY_RUN      = '--dry-run'      in sys.argv
+FORCE_TRAIN  = '--force-train'  in sys.argv
+
+# ── Hardware helpers ─────────────────────────────────────────────────────────
+def _get_ram_gb(kind='MemTotal'):
+    """Read RAM info from /proc/meminfo. kind can be MemTotal or MemAvailable."""
+    try:
+        with open('/proc/meminfo', 'r') as f:
+            for line in f:
+                if line.startswith(kind):
+                    return int(line.split()[1]) / (1024 * 1024)  # kB → GB
+    except OSError:
+        pass
+    return 0.0
+
+TOTAL_RAM_GB = _get_ram_gb('MemTotal')
+
 # ── Helpers ───────────────────────────────────────────────────────────────────
 def prompt(msg, default=None, valid_fn=None):
     """Flush-safe input helper that avoids buffering issues."""
@@ -555,6 +573,14 @@ PIPER_BATCH_SIZE = 100 if HAS_AVX2 else 10
 if not HAS_AVX2:
     print(f"  ⚠ CPU lacks AVX2 — using batch-size {PIPER_BATCH_SIZE} and safe kernel dispatch")
 
+# LOW_RESOURCE is refined later once GPU detection runs; for now base it on RAM
+LOW_RESOURCE = TOTAL_RAM_GB < 12
+if DRY_RUN:
+    print("  ℹ Dry-run mode: will validate pipeline but skip model training.")
+elif LOW_RESOURCE:
+    print(f"  ⚠ Low-resource machine detected ({TOTAL_RAM_GB:.1f} GB RAM).")
+    print(f"    Training will be skipped unless you pass --force-train.")
+
 piper_env = {
     **os.environ,
     'PYTHONPATH': os.path.abspath('piper-sample-generator'),
@@ -862,6 +888,9 @@ try:
 except Exception:
     pass
 
+# Refine LOW_RESOURCE now that we know about GPU
+LOW_RESOURCE = (not _has_gpu) and TOTAL_RAM_GB < 12
+
 # ── Step 11: Training config ──────────────────────────────────────────────────
 print("\n[Step 11] Writing training config...")
 neg_dirs = sorted([d for d in os.listdir('negative_datasets')
@@ -905,7 +934,7 @@ config = {
     'positive_class_weight': [1],
     'negative_class_weight': [20],
     'learning_rates': [0.001],
-    'batch_size': 32 if not _has_gpu else 128,
+    'batch_size': 16 if LOW_RESOURCE else (32 if not _has_gpu else 128),
     'eval_step_interval': 500,
     'clip_duration_ms': 1500,
     'target_minimization': 0.9,
@@ -917,24 +946,44 @@ with open('training_parameters.yaml', 'w') as f:
 print(f"✅ Config written (batch_size={config['batch_size']}, GPU={'yes' if _has_gpu else 'no'})")
 
 # ── Step 12: Train ────────────────────────────────────────────────────────────
-print(f"\n[Step 12] Training (~{max(1, TRAINING_STEPS // 10000)} hour(s))...")
-if os.path.exists('trained_models/wakeword'):
-    shutil.rmtree('trained_models/wakeword')
+_skip_training = DRY_RUN or (LOW_RESOURCE and not FORCE_TRAIN)
 
-# Build training env — explicitly pass the cuDNN-augmented LD_LIBRARY_PATH
-train_env = {
-    **os.environ,
-    'TF_FORCE_GPU_ALLOW_GROWTH': 'true',
-    'TF_CPP_MIN_LOG_LEVEL': '2',
-}
-if _cudnn_lib:
-    train_env['LD_LIBRARY_PATH'] = f"{_cudnn_lib}:{os.environ.get('LD_LIBRARY_PATH', '')}"
+if _skip_training:
+    _reason = "dry-run mode" if DRY_RUN else f"low-resource machine ({TOTAL_RAM_GB:.1f} GB RAM, no GPU)"
+    print(f"\n[Step 12] ⏭ Skipping training — {_reason}.")
+    print(f"         Pipeline validated successfully up to this point.")
+    print(f"         To train on this machine anyway: python3 train.py --force-train")
+    print(f"         For best results, run on a machine with a GPU.\n")
+else:
+    _avail_ram = _get_ram_gb('MemAvailable')
+    if _avail_ram < 4.0 and not FORCE_TRAIN:
+        print(f"\n[Step 12] ⚠ Only {_avail_ram:.1f} GB RAM available — training would likely freeze this machine.")
+        print(f"         Skipping training. Use --force-train to override.\n")
+        _skip_training = True
 
-if _has_gpu:
-    # Verify cuDNN availability before launching the long training run
-    print("[Step 12] GPU detected — verifying cuDNN...")
-    cudnn_check = subprocess.run(
-        [sys.executable, '-c', '''
+if not _skip_training:
+    print(f"\n[Step 12] Training (~{max(1, TRAINING_STEPS // 10000)} hour(s))...")
+    if os.path.exists('trained_models/wakeword'):
+        shutil.rmtree('trained_models/wakeword')
+
+    # Build training env — explicitly pass the cuDNN-augmented LD_LIBRARY_PATH
+    train_env = {
+        **os.environ,
+        'TF_FORCE_GPU_ALLOW_GROWTH': 'true',
+        'TF_CPP_MIN_LOG_LEVEL': '2',
+    }
+    if _cudnn_lib:
+        train_env['LD_LIBRARY_PATH'] = f"{_cudnn_lib}:{os.environ.get('LD_LIBRARY_PATH', '')}"
+    # Limit TF threads on low-resource machines to reduce memory pressure
+    if LOW_RESOURCE:
+        train_env['TF_NUM_INTEROP_THREADS'] = '1'
+        train_env['TF_NUM_INTRAOP_THREADS'] = '2'
+
+    if _has_gpu:
+        # Verify cuDNN availability before launching the long training run
+        print("[Step 12] GPU detected — verifying cuDNN...")
+        cudnn_check = subprocess.run(
+            [sys.executable, '-c', '''
 import os, ctypes, glob
 ld = os.environ.get("LD_LIBRARY_PATH", "")
 print(f"LD_LIBRARY_PATH = {ld}")
@@ -965,96 +1014,96 @@ try:
 except Exception as e:
     print(f"GPU check failed: {e}")
 '''],
-        text=True, env=train_env, capture_output=True
-    )
-    print(cudnn_check.stdout)
-    if 'CUDNN_TOO_OLD' in (cudnn_check.stdout or ''):
-        print("ERROR: cuDNN runtime version is < 9.3.0 — TF 2.18 requires >= 9.3.0.")
-        print("       Try: pip install nvidia-cudnn-cu12>=9.3,<10")
+            text=True, env=train_env, capture_output=True
+        )
+        print(cudnn_check.stdout)
+        if 'CUDNN_TOO_OLD' in (cudnn_check.stdout or ''):
+            print("ERROR: cuDNN runtime version is < 9.3.0 — TF 2.18 requires >= 9.3.0.")
+            print("       Try: pip install nvidia-cudnn-cu12>=9.3,<10")
+            sys.exit(1)
+        if cudnn_check.stderr:
+            for line in cudnn_check.stderr.splitlines():
+                if 'cudnn' in line.lower() or 'CuDNN' in line:
+                    print(f"  WARN: {line.strip()}")
+    else:
+        print("[Step 12] No GPU detected — falling back to CPU-only mode.")
+        print("         Training on CPU is supported but will be significantly slower.")
+        print("         For production training, a GPU instance is strongly recommended.")
+        print(f"\n         Note: {TRAINING_STEPS} steps on CPU will be very slow.")
+        print(f"         This is fine for testing/debugging your configuration.")
+        print(f"         For the final training run, use a GPU instance (any GPU helps).\n")
+
+    result = subprocess.run([
+        sys.executable, '-m', 'microwakeword.model_train_eval',
+        '--training_config=training_parameters.yaml',
+        '--train=1', '--restore_checkpoint', '0',
+        '--test_tf_nonstreaming', '0',
+        '--test_tflite_nonstreaming', '0',
+        '--test_tflite_nonstreaming_quantized', '0',
+        '--test_tflite_streaming', '0',
+        '--test_tflite_streaming_quantized', '1',
+        'mixednet',
+        '--pointwise_filters', '64,64,64,64',
+        '--repeat_in_block', '1, 1, 1, 1',
+        '--mixconv_kernel_sizes', '[5], [7,11], [9,15], [23]',
+        '--residual_connection', '0,0,0,0',
+        '--first_conv_filters', '32',
+        '--first_conv_kernel_size', '5',
+        '--stride', '3',
+    ], text=True, env=train_env, stderr=subprocess.PIPE)
+
+    MODEL_SRC = ('trained_models/wakeword/tflite_stream_state_internal_quant/'
+                 'stream_state_internal_quant.tflite')
+
+    if not os.path.exists(MODEL_SRC):
+        print("\n❌ Training failed — model file not found.")
+        print("   Common causes:")
+        print("   1. cuDNN version mismatch (check errors above)")
+        print("   2. Out of GPU memory (reduce batch_size in config)")
+        print("   3. Corrupt training data\n")
+        if result.stderr:
+            print("--- Last 4000 chars of stderr ---")
+            print(result.stderr[-4000:])
+        elif result.returncode != 0:
+            print(f"   Process exited with code {result.returncode} (no stderr captured)")
         sys.exit(1)
-    if cudnn_check.stderr:
-        for line in cudnn_check.stderr.splitlines():
-            if 'cudnn' in line.lower() or 'CuDNN' in line:
-                print(f"  WARN: {line.strip()}")
-else:
-    print("[Step 12] No GPU detected — falling back to CPU-only mode.")
-    print("         Training on CPU is supported but will be significantly slower.")
-    print("         For production training, a GPU instance is strongly recommended.")
-    print(f"\n         Note: {TRAINING_STEPS} steps on CPU will be very slow.")
-    print(f"         This is fine for testing/debugging your configuration.")
-    print(f"         For the final training run, use a GPU instance (any GPU helps).\n")
 
-result = subprocess.run([
-    sys.executable, '-m', 'microwakeword.model_train_eval',
-    '--training_config=training_parameters.yaml',
-    '--train=1', '--restore_checkpoint', '0',
-    '--test_tf_nonstreaming', '0',
-    '--test_tflite_nonstreaming', '0',
-    '--test_tflite_nonstreaming_quantized', '0',
-    '--test_tflite_streaming', '0',
-    '--test_tflite_streaming_quantized', '1',
-    'mixednet',
-    '--pointwise_filters', '64,64,64,64',
-    '--repeat_in_block', '1, 1, 1, 1',
-    '--mixconv_kernel_sizes', '[5], [7,11], [9,15], [23]',
-    '--residual_connection', '0,0,0,0',
-    '--first_conv_filters', '32',
-    '--first_conv_kernel_size', '5',
-    '--stride', '3',
-], text=True, env=train_env, stderr=subprocess.PIPE)
+    print("✅ Training complete")
 
-MODEL_SRC = ('trained_models/wakeword/tflite_stream_state_internal_quant/'
-             'stream_state_internal_quant.tflite')
+    # ── Step 13: Generate JSON + Push to GitHub ───────────────────────────────
+    size_kb = os.path.getsize(MODEL_SRC) / 1024
+    print(f"\n[Step 13] Generating JSON and pushing to GitHub ({size_kb:.1f} KB)...")
 
-if not os.path.exists(MODEL_SRC):
-    print("\n❌ Training failed — model file not found.")
-    print("   Common causes:")
-    print("   1. cuDNN version mismatch (check errors above)")
-    print("   2. Out of GPU memory (reduce batch_size in config)")
-    print("   3. Corrupt training data\n")
-    if result.stderr:
-        print("--- Last 4000 chars of stderr ---")
-        print(result.stderr[-4000:])
-    elif result.returncode != 0:
-        print(f"   Process exited with code {result.returncode} (no stderr captured)")
-    sys.exit(1)
+    MODEL_DEST = f'models/{TARGET_WORD}.tflite'
+    JSON_DEST  = f'models/{TARGET_WORD}.json'
 
-print("✅ Training complete")
+    os.makedirs(os.path.join(REPO_ROOT, 'models'), exist_ok=True)
+    shutil.copy(MODEL_SRC, os.path.join(REPO_ROOT, MODEL_DEST))
 
-# ── Step 13: Generate JSON + Push to GitHub ───────────────────────────────────
-size_kb = os.path.getsize(MODEL_SRC) / 1024
-print(f"\n[Step 13] Generating JSON and pushing to GitHub ({size_kb:.1f} KB)...")
-
-MODEL_DEST = f'models/{TARGET_WORD}.tflite'
-JSON_DEST  = f'models/{TARGET_WORD}.json'
-
-os.makedirs(os.path.join(REPO_ROOT, 'models'), exist_ok=True)
-shutil.copy(MODEL_SRC, os.path.join(REPO_ROOT, MODEL_DEST))
-
-wake_word_json = {
-    'type': 'micro',
-    'wake_word': TARGET_WORD.replace('_', ' '),
-    'author': 'RunPod Training Bot',
-    'version': 2,
-    'model': f'{TARGET_WORD}.tflite',
-    'trained_languages': ['en'],
-    'micro': {
-        'probability_cutoff': 0.97,
-        'sliding_window_size': 5,
-        'feature_step_size': 10,
-        'tensor_arena_size': 22860,
-        'minimum_esphome_version': '2024.7.0'
+    wake_word_json = {
+        'type': 'micro',
+        'wake_word': TARGET_WORD.replace('_', ' '),
+        'author': 'RunPod Training Bot',
+        'version': 2,
+        'model': f'{TARGET_WORD}.tflite',
+        'trained_languages': ['en'],
+        'micro': {
+            'probability_cutoff': 0.97,
+            'sliding_window_size': 5,
+            'feature_step_size': 10,
+            'tensor_arena_size': 22860,
+            'minimum_esphome_version': '2024.7.0'
+        }
     }
-}
-with open(os.path.join(REPO_ROOT, JSON_DEST), 'w') as f:
-    json.dump(wake_word_json, f, indent=2)
+    with open(os.path.join(REPO_ROOT, JSON_DEST), 'w') as f:
+        json.dump(wake_word_json, f, indent=2)
 
-git_configure()
-subprocess.run(['git', 'add', MODEL_DEST, JSON_DEST], check=True, cwd=REPO_ROOT)
-subprocess.run(['git', 'commit', '-m',
-                f'Trained model: {TARGET_WORD} ({size_kb:.1f} KB)'], check=True, cwd=REPO_ROOT)
-git_push()
+    git_configure()
+    subprocess.run(['git', 'add', MODEL_DEST, JSON_DEST], check=True, cwd=REPO_ROOT)
+    subprocess.run(['git', 'commit', '-m',
+                    f'Trained model: {TARGET_WORD} ({size_kb:.1f} KB)'], check=True, cwd=REPO_ROOT)
+    git_push()
 
-print(f"\n🎉 Done! Model + JSON committed to {GITHUB_REPO}/models/")
-print(f"   ESPHome URL: https://raw.githubusercontent.com/"
-      f"{GITHUB_REPO}/main/models/{TARGET_WORD}.json")
+    print(f"\n🎉 Done! Model + JSON committed to {GITHUB_REPO}/models/")
+    print(f"   ESPHome URL: https://raw.githubusercontent.com/"
+          f"{GITHUB_REPO}/main/models/{TARGET_WORD}.json")
