@@ -220,18 +220,14 @@ print(f"  → Training steps: {TRAINING_STEPS}")
 print()
 GITHUB_REPO  = os.environ.get('GITHUB_REPO', '')
 GITHUB_TOKEN = os.environ.get('GITHUB_TOKEN', '')
+USE_GITHUB = bool(GITHUB_TOKEN and GITHUB_REPO)
 
-if not GITHUB_TOKEN:
-    print("❌ ERROR: GITHUB_TOKEN is empty or not set.")
-    print("   Check your .env file has:  GITHUB_TOKEN=ghp_xxxxxxxxxxxx")
-    print("   Make sure there are no spaces around the '=' sign.")
-    sys.exit(1)
-if not GITHUB_REPO:
-    print("❌ ERROR: GITHUB_REPO is empty or not set.")
-    print("   Check your .env file has:  GITHUB_REPO=YourUser/YourRepo")
-    sys.exit(1)
-print(f"  → GitHub repo: {GITHUB_REPO}")
-print(f"  → GitHub token: {GITHUB_TOKEN[:4]}...{GITHUB_TOKEN[-4:]} ({len(GITHUB_TOKEN)} chars)")
+if USE_GITHUB:
+    print(f"  → GitHub repo: {GITHUB_REPO}")
+    print(f"  → GitHub token: {GITHUB_TOKEN[:4]}...{GITHUB_TOKEN[-4:]} ({len(GITHUB_TOKEN)} chars)")
+else:
+    print("  → GitHub: not configured (model will be saved locally only)")
+    print("    Set GITHUB_TOKEN and GITHUB_REPO in .env to enable auto-push.")
 
 _SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 BASE = os.environ.get('WORK_DIR', _SCRIPT_DIR)
@@ -276,24 +272,28 @@ if real_audio_files:
     USING_REAL = True
 else:
     print(f"📂 No real recordings found in {REAL_DIR}/")
-    ans = prompt("Would you like to upload real recordings to GitHub first? [y/n]: ",
-                 default='n')
-    if ans.lower() == 'y':
-        print(f"\n📤 Upload your recording file(s) here:")
-        print(f"   https://github.com/{GITHUB_REPO}/upload/main/real_recordings")
-        print(f"\n   Supported formats: .wav  .mp3  .m4a  .flac")
-        print(f"   Tip: One long file with 10-50 repetitions, 1-2 sec pause between each.\n")
-        prompt("Press Enter when your files are uploaded and committed to GitHub...")
-        git_configure()
-        subprocess.run(['git', 'pull', 'origin', 'main'], check=True, cwd=REPO_ROOT)
-        real_audio_files = scan_real_recordings()
-        if real_audio_files:
-            print(f"✅ Found {len(real_audio_files)} recording file(s) — using 50/50 split.")
-            USING_REAL = True
+    if USE_GITHUB:
+        ans = prompt("Would you like to upload real recordings to GitHub first? [y/n]: ",
+                     default='n')
+        if ans.lower() == 'y':
+            print(f"\n📤 Upload your recording file(s) here:")
+            print(f"   https://github.com/{GITHUB_REPO}/upload/main/real_recordings")
+            print(f"\n   Supported formats: .wav  .mp3  .m4a  .flac")
+            print(f"   Tip: One long file with 10-50 repetitions, 1-2 sec pause between each.\n")
+            prompt("Press Enter when your files are uploaded and committed to GitHub...")
+            git_configure()
+            subprocess.run(['git', 'pull', 'origin', 'main'], check=True, cwd=REPO_ROOT)
+            real_audio_files = scan_real_recordings()
+            if real_audio_files:
+                print(f"✅ Found {len(real_audio_files)} recording file(s) — using 50/50 split.")
+                USING_REAL = True
+            else:
+                print("⚠️  No files found after pull. Continuing with synthetic-only.")
         else:
-            print("⚠️  No files found after pull. Continuing with synthetic-only.")
+            print("📢 Skipping real recordings — using 100% synthetic samples.")
     else:
-        print("📢 Skipping real recordings — using 100% synthetic samples.")
+        print("   Place .wav/.mp3/.m4a/.flac files in real_recordings/ and re-run.")
+        print("📢 Continuing with 100% synthetic samples.")
 
 SYNTHETIC_COUNT = NUM_SAMPLES // 2 if USING_REAL else NUM_SAMPLES
 REAL_TARGET     = NUM_SAMPLES // 2 if USING_REAL else 0
@@ -311,10 +311,8 @@ subprocess.run([sys.executable, '-m', 'pip', 'install', '-q', 'tensorboard'],
                check=True)
 
 # Patch: fix validate_nonstreaming for Keras 3 / TF 2.18 compatibility.
-# In Keras 3, model.evaluate(return_dict=True) may use different metric key
-# names (e.g. "binary_accuracy" instead of "accuracy"). We wrap model.evaluate
-# with _safe_evaluate that tries return_dict, falls back to list+metrics_names,
-# then falls back to index-based access, and normalizes keys via aliases.
+# Uses streaming from_generator() instead of get_data() to avoid OOM,
+# and handles Keras 3 metric key naming (e.g. "binary_accuracy").
 CUT_MARKER = '\n# === TRAIN.PY PATCH ==='
 _train_py_path = 'microWakeWord/microwakeword/train.py'
 with open(_train_py_path, 'r') as f:
@@ -323,172 +321,143 @@ if CUT_MARKER in _src:
     _src = _src[:_src.index(CUT_MARKER)]
 
 _patch = CUT_MARKER + '''
+import tensorflow as tf
 
-def _safe_evaluate(model, data, labels, batch_size=128):
-    """Call model.evaluate ONCE and return a dict with canonical metric names."""
-    _ALIASES = {
-        "accuracy": ["binary_accuracy", "acc"],
-        "loss": ["binary_crossentropy"],
-        "recall": ["recall_1"],
-        "precision": ["precision_1"],
-        "auc": ["auc_1"],
-        "tp": ["true_positives", "tp_1"],
-        "fp": ["false_positives", "fp_1"],
-        "tn": ["true_negatives", "tn_1"],
-        "fn": ["false_negatives", "fn_1"],
-    }
-
-    n_samples = data.shape[0] if hasattr(data, "shape") else len(data)
-    print(f"  [eval] Running model.evaluate on {n_samples} samples...", flush=True)
-
-    # Single evaluate call — try return_dict first, fall back to list
-    try:
-        raw = model.evaluate(data, labels, batch_size=batch_size,
-                             return_dict=True, verbose=2)
-    except Exception:
-        raw = model.evaluate(data, labels, batch_size=batch_size, verbose=2)
-        if not isinstance(raw, list):
-            raw = [raw]
-        names = getattr(model, "metrics_names", [])
-        raw = dict(zip(names, raw)) if names else {}
-
-    # Normalize: map any alias back to the canonical name
-    result = {}
-    for canonical, aliases in _ALIASES.items():
-        if canonical in raw:
-            val = raw[canonical]
-            result[canonical] = val.numpy() if hasattr(val, "numpy") else val
-        else:
-            for alias in aliases:
-                if alias in raw:
-                    val = raw[alias]
-                    result[canonical] = val.numpy() if hasattr(val, "numpy") else val
-                    break
-
-    if not hasattr(_safe_evaluate, "_logged"):
-        print(f"  [eval] Raw keys: {list(raw.keys())}")
-        print(f"  [eval] Resolved keys: {list(result.keys())}")
-        _safe_evaluate._logged = True
-
-    return result
+# numpy 2.x renamed trapz -> trapezoid
+_trapz_fn = getattr(np, "trapezoid", np.trapz)
 
 def validate_nonstreaming(config, data_processor, model, test_set):
-    """Patched validate_nonstreaming — handles Keras 3 metric naming."""
-    batch_size = config["batch_size"]
+    """Streaming validate_nonstreaming — uses from_generator() to avoid OOM.
 
-    print(f"[validation] Loading '{test_set}' data...", flush=True)
-    testing_fingerprints, testing_ground_truth, _ = data_processor.get_data(
-        test_set,
-        batch_size=batch_size,
-        features_length=config["spectrogram_length"],
-        truncation_strategy="truncate_start",
+    Instead of loading all validation data into RAM via get_data(), this
+    streams spectrograms one at a time from mmap via get_feature_generator().
+    """
+    features_length = config["spectrogram_length"]
+    bs = config["batch_size"]
+
+    if data_processor.get_mode_size(test_set) == 0:
+        return {
+            "loss": 99.0, "accuracy": 0, "recall": 0, "precision": 0,
+            "auc": 0, "tp": 0, "fp": 0, "tn": 0, "fn": 0,
+            "recall_at_no_faph": 0, "cutoff_for_no_faph": 0,
+            "ambient_false_positives": 0, "ambient_false_positives_per_hour": 0,
+            "average_viable_recall": 0,
+        }
+
+    def _make_gen(mode, trunc):
+        def gen():
+            for provider in data_processor.feature_providers:
+                if provider.get_mode_size(mode) == 0:
+                    continue
+                label = np.array([provider.label], dtype=np.float32)
+                for spec in provider.get_feature_generator(mode, features_length, trunc):
+                    yield spec.astype(np.float32), label
+        return gen
+
+    out_sig = (
+        tf.TensorSpec(shape=(features_length, 40), dtype=tf.float32),
+        tf.TensorSpec(shape=(1,),                   dtype=tf.float32),
     )
-    print(f"[validation] {test_set} shape: {testing_fingerprints.shape} "
-          f"(ground_truth: {testing_ground_truth.shape})", flush=True)
 
-    testing_ground_truth = testing_ground_truth.reshape(-1, 1)
+    # ── Primary test set ──
+    gen_fn = _make_gen(test_set, "truncate_start")
+    n_samples = sum(1 for _ in gen_fn())
+    n_steps = n_samples // bs
+    if n_steps == 0:
+        return {
+            "loss": 99.0, "accuracy": 0, "recall": 0, "precision": 0,
+            "auc": 0, "tp": 0, "fp": 0, "tn": 0, "fn": 0,
+            "recall_at_no_faph": 0, "cutoff_for_no_faph": 0,
+            "ambient_false_positives": 0, "ambient_false_positives_per_hour": 0,
+            "average_viable_recall": 0,
+        }
+
+    ds = (tf.data.Dataset.from_generator(gen_fn, output_signature=out_sig)
+          .batch(bs, drop_remainder=True).prefetch(tf.data.AUTOTUNE))
     model.reset_metrics()
+    result = model.evaluate(ds, steps=n_steps, return_dict=True, verbose=0)
 
-    result = _safe_evaluate(model, testing_fingerprints, testing_ground_truth,
-                            batch_size=batch_size)
+    def _v(d, k):
+        v = d.get(k, d.get("binary_" + k, 0))
+        return v.numpy() if hasattr(v, "numpy") else v
 
     metrics = {
-        "accuracy": result["accuracy"],
-        "recall": result["recall"],
-        "precision": result["precision"],
-        "auc": result["auc"],
-        "loss": result["loss"],
-        "recall_at_no_faph": 0,
-        "cutoff_for_no_faph": 0,
-        "ambient_false_positives": 0,
-        "ambient_false_positives_per_hour": 0,
+        "accuracy": _v(result, "accuracy"),
+        "recall":   _v(result, "recall"),
+        "precision":_v(result, "precision"),
+        "auc":      _v(result, "auc"),
+        "loss":     _v(result, "loss"),
+        "recall_at_no_faph": 0, "cutoff_for_no_faph": 0,
+        "ambient_false_positives": 0, "ambient_false_positives_per_hour": 0,
         "average_viable_recall": 0,
     }
-    test_set_fp = result["fp"]
+    test_set_fp = _v(result, "fp")
 
+    # ── Ambient set ──
     ambient_mode = test_set + "_ambient"
     if data_processor.get_mode_size(ambient_mode) > 0:
-        print(f"[validation] Loading '{ambient_mode}' data...", flush=True)
-        (
-            ambient_fingerprints,
-            ambient_ground_truth,
-            _,
-        ) = data_processor.get_data(
-            ambient_mode,
-            batch_size=batch_size,
-            features_length=config["spectrogram_length"],
-            truncation_strategy="split",
-        )
-        print(f"[validation] {ambient_mode} shape: {ambient_fingerprints.shape}", flush=True)
-        ambient_ground_truth = ambient_ground_truth.reshape(-1, 1)
+        amb_gen = _make_gen(ambient_mode, "split")
+        amb_n = sum(1 for _ in amb_gen())
+        amb_steps = amb_n // bs
+        if amb_steps > 0:
+            amb_ds = (tf.data.Dataset.from_generator(amb_gen, output_signature=out_sig)
+                      .batch(bs, drop_remainder=True).prefetch(tf.data.AUTOTUNE))
+            with swap_attribute(model, "reset_metrics", lambda: None):
+                ambient_result = model.evaluate(amb_ds, steps=amb_steps,
+                                                return_dict=True, verbose=0)
 
-        with swap_attribute(model, "reset_metrics", lambda: None):
-            ambient_result = _safe_evaluate(
-                model, ambient_fingerprints,
-                ambient_ground_truth, batch_size=batch_size
+            duration_hours = data_processor.get_mode_duration(ambient_mode) / 3600.0
+            all_tp = _v(ambient_result, "tp")
+            ambient_fp = _v(ambient_result, "fp") - test_set_fp
+            all_fn = _v(ambient_result, "fn")
+
+            metrics["auc"]  = _v(ambient_result, "auc")
+            metrics["loss"] = _v(ambient_result, "loss")
+
+            recall_at_cutoffs = all_tp / (all_tp + all_fn)
+            faph_at_cutoffs = ambient_fp / duration_hours
+
+            target_faph_cutoff_probability = 1.0
+            recall_at_no_faph = 0
+            for index, cutoff in enumerate(np.linspace(0.0, 1.0, 101)):
+                if faph_at_cutoffs[index] == 0:
+                    target_faph_cutoff_probability = cutoff
+                    recall_at_no_faph = recall_at_cutoffs[index]
+                    break
+
+            if faph_at_cutoffs[0] > 2:
+                index_of_first_viable = 1
+                while (index_of_first_viable < len(faph_at_cutoffs)
+                       and faph_at_cutoffs[index_of_first_viable] > 2):
+                    index_of_first_viable += 1
+                if index_of_first_viable >= len(faph_at_cutoffs):
+                    recall_at_2faph = 0
+                else:
+                    x0 = faph_at_cutoffs[index_of_first_viable - 1]
+                    y0 = recall_at_cutoffs[index_of_first_viable - 1]
+                    x1 = faph_at_cutoffs[index_of_first_viable]
+                    y1 = recall_at_cutoffs[index_of_first_viable]
+                    recall_at_2faph = (y0 * (x1 - 2.0) + y1 * (2.0 - x0)) / (x1 - x0)
+            else:
+                index_of_first_viable = 0
+                recall_at_2faph = recall_at_cutoffs[0]
+
+            x_coordinates = [2.0]
+            y_coordinates = [recall_at_2faph]
+            for index in range(index_of_first_viable, len(recall_at_cutoffs)):
+                if faph_at_cutoffs[index] != x_coordinates[-1]:
+                    x_coordinates.append(faph_at_cutoffs[index])
+                    y_coordinates.append(recall_at_cutoffs[index])
+
+            average_viable_recall = (
+                _trapz_fn(np.flip(y_coordinates), np.flip(x_coordinates)) / 2.0
             )
 
-        duration_hours = (
-            data_processor.get_mode_duration(ambient_mode) / 3600.0
-        )
-
-        all_tp = ambient_result["tp"]
-        ambient_fp = ambient_result["fp"] - test_set_fp
-        all_fn = ambient_result["fn"]
-
-        metrics["auc"] = ambient_result["auc"]
-        metrics["loss"] = ambient_result["loss"]
-
-        recall_at_cutoffs = all_tp / (all_tp + all_fn)
-        faph_at_cutoffs = ambient_fp / duration_hours
-
-        target_faph_cutoff_probability = 1.0
-        recall_at_no_faph = 0
-        for index, cutoff in enumerate(np.linspace(0.0, 1.0, 101)):
-            if faph_at_cutoffs[index] == 0:
-                target_faph_cutoff_probability = cutoff
-                recall_at_no_faph = recall_at_cutoffs[index]
-                break
-
-        if faph_at_cutoffs[0] > 2:
-            index_of_first_viable = 1
-            while (index_of_first_viable < len(faph_at_cutoffs)
-                   and faph_at_cutoffs[index_of_first_viable] > 2):
-                index_of_first_viable += 1
-
-            if index_of_first_viable >= len(faph_at_cutoffs):
-                recall_at_2faph = 0
-            else:
-                x0 = faph_at_cutoffs[index_of_first_viable - 1]
-                y0 = recall_at_cutoffs[index_of_first_viable - 1]
-                x1 = faph_at_cutoffs[index_of_first_viable]
-                y1 = recall_at_cutoffs[index_of_first_viable]
-                recall_at_2faph = (y0 * (x1 - 2.0) + y1 * (2.0 - x0)) / (x1 - x0)
-        else:
-            index_of_first_viable = 0
-            recall_at_2faph = recall_at_cutoffs[0]
-
-        x_coordinates = [2.0]
-        y_coordinates = [recall_at_2faph]
-
-        for index in range(index_of_first_viable, len(recall_at_cutoffs)):
-            if faph_at_cutoffs[index] != x_coordinates[-1]:
-                x_coordinates.append(faph_at_cutoffs[index])
-                y_coordinates.append(recall_at_cutoffs[index])
-
-        average_viable_recall = (
-            np.trapz(np.flip(y_coordinates), np.flip(x_coordinates)) / 2.0
-        )
-
-        metrics["recall_at_no_faph"] = recall_at_no_faph
-        metrics["cutoff_for_no_faph"] = target_faph_cutoff_probability
-        metrics["ambient_false_positives"] = ambient_fp[50]
-        metrics["ambient_false_positives_per_hour"] = faph_at_cutoffs[50]
-        metrics["average_viable_recall"] = average_viable_recall
-        print(f"[validation] avg_viable_recall={average_viable_recall:.4f} "
-              f"faph@0.5={faph_at_cutoffs[50]:.2f}", flush=True)
-    else:
-        print(f"[validation] No ambient data — skipping FAPH metrics", flush=True)
+            metrics["recall_at_no_faph"] = recall_at_no_faph
+            metrics["cutoff_for_no_faph"] = target_faph_cutoff_probability
+            metrics["ambient_false_positives"] = ambient_fp[50]
+            metrics["ambient_false_positives_per_hour"] = faph_at_cutoffs[50]
+            metrics["average_viable_recall"] = average_viable_recall
 
     return metrics
 '''
@@ -598,14 +567,17 @@ if preview_files:
     os.makedirs(os.path.join(REPO_ROOT, 'models'), exist_ok=True)
     shutil.copy(os.path.join(preview_dir, preview_files[0]),
                 os.path.join(REPO_ROOT, preview_dest))
-    git_configure()
-    subprocess.run(['git', 'add', preview_dest], check=True, cwd=REPO_ROOT)
-    subprocess.run(['git', 'commit', '-m',
-                    f'Preview sample: {TARGET_WORD}'], check=True, cwd=REPO_ROOT)
-    git_push()
-    print(f"\n🔊 Preview pushed to GitHub!")
-    print(f"   Go to: https://github.com/{GITHUB_REPO}/blob/main/{preview_dest}")
-    print(f"   Download the .wav file and play it to check pronunciation.\n")
+    if USE_GITHUB:
+        git_configure()
+        subprocess.run(['git', 'add', preview_dest], check=True, cwd=REPO_ROOT)
+        subprocess.run(['git', 'commit', '-m',
+                        f'Preview sample: {TARGET_WORD}'], check=True, cwd=REPO_ROOT)
+        git_push()
+        print(f"\n🔊 Preview pushed to GitHub!")
+        print(f"   Go to: https://github.com/{GITHUB_REPO}/blob/main/{preview_dest}")
+    else:
+        print(f"\n🔊 Preview saved to: {os.path.join(REPO_ROOT, preview_dest)}")
+    print(f"   Play the .wav file to check pronunciation.\n")
     while True:
         answer = prompt("Does the pronunciation sound correct? [y/n]: ", default='')
         if answer.lower() in ('y', 'n'):
@@ -804,10 +776,8 @@ from mmap_ninja.ragged import RaggedMmap
 
 MMAP_TRAIN = 'generated_augmented_features/training/wakeword_mmap'
 MMAP_TEST  = 'generated_augmented_features/testing/wakeword_mmap'
-MMAP_VAL   = 'generated_augmented_features/validation/wakeword_mmap'
 os.makedirs(os.path.dirname(MMAP_TRAIN), exist_ok=True)
 os.makedirs(os.path.dirname(MMAP_TEST),  exist_ok=True)
-os.makedirs(os.path.dirname(MMAP_VAL),   exist_ok=True)
 
 clips_obj = Clips(input_directory='generated_samples', file_pattern='*.wav',
                   max_clip_duration_s=None, remove_silence=False,
@@ -840,33 +810,35 @@ RaggedMmap.from_generator(
     sample_generator=spectrograms.spectrogram_generator(split='test', repeat=1),
     batch_size=100, verbose=True
 )
-print("  Writing validation split...")
-RaggedMmap.from_generator(
-    out_dir=MMAP_VAL,
-    sample_generator=spectrograms.spectrogram_generator(split='validation', repeat=1),
-    batch_size=100, verbose=True
-)
+# Create validation → testing symlink (wake word data only has train/test splits)
+val_dir = 'generated_augmented_features/validation'
+test_dir = 'generated_augmented_features/testing'
+if os.path.islink(val_dir):
+    os.unlink(val_dir)
+elif os.path.isdir(val_dir):
+    shutil.rmtree(val_dir)
+os.symlink(os.path.basename(test_dir), val_dir)
+print("  Created validation/ → testing/ symlink")
 
 mmap_tr = RaggedMmap(MMAP_TRAIN)
 mmap_te = RaggedMmap(MMAP_TEST)
-mmap_va = RaggedMmap(MMAP_VAL)
 assert len(mmap_tr) > 0, '❌ train mmap is empty'
 assert len(mmap_te) > 0, '❌ test mmap is empty — increase NUM_SAMPLES'
-assert len(mmap_va) > 0, '❌ validation mmap is empty — increase NUM_SAMPLES'
-print(f"✅ {len(mmap_tr)} train | {len(mmap_te)} test | {len(mmap_va)} validation spectrograms saved")
+print(f"✅ {len(mmap_tr)} train | {len(mmap_te)} test spectrograms saved")
 
 # ── Step 10: Negative datasets ────────────────────────────────────────────────
 print("\n[Step 10] Downloading negative datasets...")
 from huggingface_hub import hf_hub_download, list_repo_files
+HF_TOKEN = os.environ.get('HF_TOKEN', '') or None
 repo_id, repo_type = 'kahrendt/microwakeword', 'dataset'
-zip_files = [f for f in list_repo_files(repo_id, repo_type=repo_type)
+zip_files = [f for f in list_repo_files(repo_id, repo_type=repo_type, token=HF_TOKEN)
              if f.endswith('.zip')]
 for fname in zip_files:
     base = os.path.splitext(os.path.basename(fname))[0]
     if not os.path.exists(f'negative_datasets/{base}'):
         print(f"  Downloading {fname}...")
         local = hf_hub_download(repo_id=repo_id, filename=fname,
-                                repo_type=repo_type)
+                                repo_type=repo_type, token=HF_TOKEN)
         with zipfile.ZipFile(local, 'r') as zf:
             zf.extractall('negative_datasets')
 hf_cache = os.path.expanduser('~/.cache/huggingface')
@@ -938,7 +910,7 @@ config = {
     'eval_step_interval': 500,
     'clip_duration_ms': 1500,
     'target_minimization': 0.9,
-    'minimization_metric': '',
+    'minimization_metric': None,
     'maximization_metric': 'average_viable_recall',
 }
 with open('training_parameters.yaml', 'w') as f:
@@ -1070,9 +1042,9 @@ except Exception as e:
 
     print("✅ Training complete")
 
-    # ── Step 13: Generate JSON + Push to GitHub ───────────────────────────────
+    # ── Step 13: Generate JSON + optionally push to GitHub ──────────────────
     size_kb = os.path.getsize(MODEL_SRC) / 1024
-    print(f"\n[Step 13] Generating JSON and pushing to GitHub ({size_kb:.1f} KB)...")
+    print(f"\n[Step 13] Saving model ({size_kb:.1f} KB)...")
 
     MODEL_DEST = f'models/{TARGET_WORD}.tflite'
     JSON_DEST  = f'models/{TARGET_WORD}.json'
@@ -1083,7 +1055,7 @@ except Exception as e:
     wake_word_json = {
         'type': 'micro',
         'wake_word': TARGET_WORD.replace('_', ' '),
-        'author': 'RunPod Training Bot',
+        'author': 'Training Bot',
         'version': 2,
         'model': f'{TARGET_WORD}.tflite',
         'trained_languages': ['en'],
@@ -1098,12 +1070,18 @@ except Exception as e:
     with open(os.path.join(REPO_ROOT, JSON_DEST), 'w') as f:
         json.dump(wake_word_json, f, indent=2)
 
-    git_configure()
-    subprocess.run(['git', 'add', MODEL_DEST, JSON_DEST], check=True, cwd=REPO_ROOT)
-    subprocess.run(['git', 'commit', '-m',
-                    f'Trained model: {TARGET_WORD} ({size_kb:.1f} KB)'], check=True, cwd=REPO_ROOT)
-    git_push()
+    print(f"  Model: {os.path.join(REPO_ROOT, MODEL_DEST)}")
+    print(f"  JSON:  {os.path.join(REPO_ROOT, JSON_DEST)}")
 
-    print(f"\n🎉 Done! Model + JSON committed to {GITHUB_REPO}/models/")
-    print(f"   ESPHome URL: https://raw.githubusercontent.com/"
-          f"{GITHUB_REPO}/main/models/{TARGET_WORD}.json")
+    if USE_GITHUB:
+        git_configure()
+        subprocess.run(['git', 'add', MODEL_DEST, JSON_DEST], check=True, cwd=REPO_ROOT)
+        subprocess.run(['git', 'commit', '-m',
+                        f'Trained model: {TARGET_WORD} ({size_kb:.1f} KB)'], check=True, cwd=REPO_ROOT)
+        git_push()
+        print(f"\n🎉 Done! Model + JSON pushed to {GITHUB_REPO}/models/")
+        print(f"   ESPHome URL: https://raw.githubusercontent.com/"
+              f"{GITHUB_REPO}/main/models/{TARGET_WORD}.json")
+    else:
+        print(f"\n🎉 Done! Model + JSON saved locally.")
+        print(f"   To use with ESPHome, host the .json file and update the URL.")

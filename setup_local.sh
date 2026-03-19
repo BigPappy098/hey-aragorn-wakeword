@@ -40,16 +40,16 @@ pip install --upgrade pip -q
 # ── Python packages ──────────────────────────────────────────────────────────
 echo "[4/4] Installing Python packages..."
 pip install -q "tensorflow>=2.18.0"
-pip install -q numpy pyyaml mmap-ninja huggingface-hub soundfile librosa
+pip install -q numpy pyyaml mmap-ninja huggingface-hub soundfile librosa tensorboard
 pip install -q torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cpu
 pip install -q piper-tts
-pip install -q "audiomentations>=0.35.0" webrtcvad
+pip install -q "audiomentations>=0.35.0" webrtcvad torchcodec
 
-# GPU users: install cuDNN
+# GPU info — cuDNN is handled automatically by train.py at runtime
+# (it side-installs cuDNN 9.3 to avoid conflicts with PyTorch's pinned version)
 if python3 -c "import tensorflow as tf; exit(0 if tf.config.list_physical_devices('GPU') else 1)" 2>/dev/null; then
     echo ""
-    echo "GPU detected — installing cuDNN..."
-    pip install -q "nvidia-cudnn-cu12>=9.3,<10"
+    echo "GPU detected — cuDNN will be configured automatically by train.py."
 else
     echo ""
     echo "No GPU detected — CPU-only mode. Training will be slower but functional."
