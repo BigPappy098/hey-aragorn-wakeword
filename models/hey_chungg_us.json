@@ -3,7 +3,7 @@
   "wake_word": "hey chungg us",
   "author": "Training Bot",
   "version": 2,
-  "model": "hey_chungg_us.tflite",
+  "model": "hey_air_uh_gorn.tflite",
   "trained_languages": [
     "en"
   ],
