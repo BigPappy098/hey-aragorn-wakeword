@@ -1,9 +1,9 @@
 {
   "type": "micro",
-  "wake_word": "hey air uh gorn",
+  "wake_word": "hey chungg us",
   "author": "Training Bot",
   "version": 2,
-  "model": "hey_air_uh_gorn.tflite",
+  "model": "hey_chungg_us.tflite",
   "trained_languages": [
     "en"
   ],
