@@ -11,19 +11,19 @@ import subprocess as _sp, os as _os, sys as _sys, ctypes as _ctypes, glob as _gl
 # We can't just pip-upgrade nvidia-cudnn-cu12 because PyTorch pins ==9.1.0.70.
 # Instead, download the 9.3.0 wheel to a separate directory and extract just
 # the .so files, then point LD_LIBRARY_PATH there.
-_CUDNN_VERSION = '9.3.0.75'
+_CUDNN_VERSION_SPEC = '>=9.3,<10'  # TF 2.18 needs cuDNN >= 9.3
 _CUDNN_LOCAL = '/usr/local/lib/cudnn-9.3'
 _cudnn_lib = None
 
 def _ensure_cudnn_93():
-    """Install cuDNN 9.3.0 to a side directory without disturbing pip packages."""
+    """Install cuDNN >= 9.3 to a side directory without disturbing pip packages."""
     lib_dir = _os.path.join(_CUDNN_LOCAL, 'nvidia', 'cudnn', 'lib')
     if _os.path.isdir(lib_dir) and _glob.glob(_os.path.join(lib_dir, 'libcudnn.so*')):
         return lib_dir  # already installed
-    print(f"[init] Installing cuDNN {_CUDNN_VERSION} to {_CUDNN_LOCAL}...")
+    print(f"[init] Installing cuDNN ({_CUDNN_VERSION_SPEC}) to {_CUDNN_LOCAL}...")
     _sp.run([_sys.executable, '-m', 'pip', 'install', '-q',
              '--no-deps', f'--target={_CUDNN_LOCAL}',
-             f'nvidia-cudnn-cu12=={_CUDNN_VERSION}'],
+             f'nvidia-cudnn-cu12{_CUDNN_VERSION_SPEC}'],
             check=True)
     return lib_dir
 
@@ -102,7 +102,27 @@ def _get_ram_gb(kind='MemTotal'):
         pass
     return 0.0
 
+def _check_nvidia_smi():
+    """Early GPU/driver sanity check. Prints info and returns True if GPU usable."""
+    import subprocess as sp
+    if not shutil.which('nvidia-smi'):
+        print("[hw] nvidia-smi not found — no NVIDIA GPU driver installed.")
+        return False
+    try:
+        r = sp.run(['nvidia-smi', '--query-gpu=name,driver_version,memory.total,cuda_version',
+                     '--format=csv,noheader'], text=True, capture_output=True, timeout=15)
+        if r.returncode != 0:
+            print(f"[hw] nvidia-smi failed (exit {r.returncode}): {r.stderr.strip()}")
+            return False
+        for line in r.stdout.strip().splitlines():
+            print(f"[hw] GPU: {line.strip()}")
+        return True
+    except Exception as e:
+        print(f"[hw] nvidia-smi check failed: {e}")
+        return False
+
 TOTAL_RAM_GB = _get_ram_gb('MemTotal')
+HAS_NVIDIA_DRIVER = _check_nvidia_smi()
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
 def prompt(msg, default=None, valid_fn=None):
@@ -474,12 +494,23 @@ print("✅ Repos ready")
 # ── Ensure PyTorch + piper-tts are available (needed by piper-sample-generator)
 try:
     import torch  # noqa: F401
+    print(f"[dep] PyTorch {torch.__version__} already installed — keeping it")
 except ImportError:
-    print("[dep] PyTorch not found — installing CPU-only version...")
-    subprocess.run([sys.executable, '-m', 'pip', 'install', '-q',
-                    'torch', 'torchvision', 'torchaudio',
-                    '--index-url', 'https://download.pytorch.org/whl/cpu'],
-                   check=True)
+    # Only needed for piper-tts (sample generation, not training).
+    # On GPU machines, avoid the CPU-only index — it can clobber nvidia-*
+    # packages that TensorFlow needs for CUDA access.
+    _is_gpu_machine = os.path.exists('/dev/nvidia0') or shutil.which('nvidia-smi')
+    if _is_gpu_machine:
+        print("[dep] PyTorch not found — installing (GPU machine detected, using default index)...")
+        subprocess.run([sys.executable, '-m', 'pip', 'install', '-q',
+                        'torch', 'torchvision', 'torchaudio'],
+                       check=True)
+    else:
+        print("[dep] PyTorch not found — installing CPU-only version...")
+        subprocess.run([sys.executable, '-m', 'pip', 'install', '-q',
+                        'torch', 'torchvision', 'torchaudio',
+                        '--index-url', 'https://download.pytorch.org/whl/cpu'],
+                       check=True)
 
 try:
     import piper  # noqa: F401
@@ -952,14 +983,28 @@ if not _skip_training:
         train_env['TF_NUM_INTRAOP_THREADS'] = '2'
 
     if _has_gpu:
-        # Verify cuDNN availability before launching the long training run
-        print("[Step 12] GPU detected — verifying cuDNN...")
+        # Verify cuDNN availability before launching the long training run.
+        # Tests both matmul AND conv2d — cuDNN errors only surface on convolutions.
+        print("[Step 12] GPU detected — verifying CUDA + cuDNN...")
         cudnn_check = subprocess.run(
             [sys.executable, '-c', '''
-import os, ctypes, glob
+import os, sys, ctypes, glob
+
+# 1) Show nvidia-smi info
+import subprocess
+try:
+    smi = subprocess.run(["nvidia-smi", "--query-gpu=name,driver_version,memory.total",
+                          "--format=csv,noheader"], text=True, capture_output=True, timeout=10)
+    print(f"GPU: {smi.stdout.strip()}")
+except Exception as e:
+    print(f"nvidia-smi failed: {e}")
+
+# 2) Check cuDNN shared library version
 ld = os.environ.get("LD_LIBRARY_PATH", "")
 print(f"LD_LIBRARY_PATH = {ld}")
 for p in ld.split(":"):
+    if not p:
+        continue
     libs = glob.glob(os.path.join(p, "libcudnn*.so*"))
     if libs:
         print(f"  cuDNN libs in {p}: {[os.path.basename(l) for l in libs[:5]]}")
@@ -969,34 +1014,62 @@ try:
     major, minor, patch = ver // 10000, (ver % 10000) // 100, ver % 100
     print(f"cuDNN runtime version: {major}.{minor}.{patch}")
     if (major, minor) < (9, 3):
-        print(f"CUDNN_TOO_OLD")
+        print("CUDNN_TOO_OLD")
 except Exception as e:
     print(f"cuDNN version check failed: {e}")
+    print("CUDNN_MISSING")
+
+# 3) TensorFlow GPU + conv2d test (catches cuDNN kernel load errors)
 try:
     import tensorflow as tf
     print(f"TF version: {tf.__version__}")
     gpus = tf.config.list_physical_devices("GPU")
     print(f"GPUs visible: {gpus}")
     if gpus:
+        tf.config.experimental.set_memory_growth(gpus[0], True)
         with tf.device("/GPU:0"):
+            # matmul test
             a = tf.constant([[1.0, 2.0], [3.0, 4.0]])
-            b = tf.constant([[1.0], [1.0]])
-            c = tf.matmul(a, b)
+            c = tf.matmul(a, a)
             print(f"GPU matmul OK: {c.numpy().flatten()}")
+            # conv2d test — this is what actually triggers cuDNN kernel loading
+            x = tf.random.normal([1, 8, 8, 3])
+            w = tf.random.normal([3, 3, 3, 16])
+            y = tf.nn.conv2d(x, w, strides=1, padding="SAME")
+            print(f"GPU conv2d OK: output shape {y.shape}")
+    else:
+        print("GPU_NOT_VISIBLE")
 except Exception as e:
     print(f"GPU check failed: {e}")
+    print("GPU_CHECK_FAILED")
 '''],
             text=True, env=train_env, capture_output=True
         )
         print(cudnn_check.stdout)
-        if 'CUDNN_TOO_OLD' in (cudnn_check.stdout or ''):
-            print("ERROR: cuDNN runtime version is < 9.3.0 — TF 2.18 requires >= 9.3.0.")
-            print("       Try: pip install nvidia-cudnn-cu12>=9.3,<10")
-            sys.exit(1)
         if cudnn_check.stderr:
+            # Show cuDNN/CUDA relevant warnings
             for line in cudnn_check.stderr.splitlines():
-                if 'cudnn' in line.lower() or 'CuDNN' in line:
-                    print(f"  WARN: {line.strip()}")
+                ll = line.lower()
+                if any(kw in ll for kw in ['cudnn', 'cuda', 'cublas', 'error', 'failed', 'not found']):
+                    print(f"  ⚠ {line.strip()}")
+        if 'CUDNN_TOO_OLD' in (cudnn_check.stdout or ''):
+            print("\n❌ cuDNN runtime version is < 9.3.0 — TF 2.18 requires >= 9.3.0.")
+            print("   Fix: pip install --force-reinstall 'nvidia-cudnn-cu12>=9.3,<10'")
+            sys.exit(1)
+        if 'CUDNN_MISSING' in (cudnn_check.stdout or ''):
+            print("\n❌ Could not load libcudnn.so.9 — cuDNN is missing or not in LD_LIBRARY_PATH.")
+            print("   Fix: pip install 'nvidia-cudnn-cu12>=9.3,<10'")
+            sys.exit(1)
+        if 'GPU_NOT_VISIBLE' in (cudnn_check.stdout or ''):
+            print("\n⚠ TensorFlow can't see the GPU. Check CUDA_VISIBLE_DEVICES and driver.")
+            _has_gpu = False
+        if 'GPU_CHECK_FAILED' in (cudnn_check.stdout or ''):
+            print("\n❌ GPU check failed — see errors above. Training would crash.")
+            print("   Common fixes:")
+            print("   1. pip install --force-reinstall 'nvidia-cudnn-cu12>=9.3,<10'")
+            print("   2. Ensure CUDA 12.x toolkit is installed")
+            print("   3. Check nvidia-smi works correctly")
+            sys.exit(1)
     else:
         print("[Step 12] No GPU detected — falling back to CPU-only mode.")
         print("         Training on CPU is supported but will be significantly slower.")
@@ -1005,7 +1078,12 @@ except Exception as e:
         print(f"         This is fine for testing/debugging your configuration.")
         print(f"         For the final training run, use a GPU instance (any GPU helps).\n")
 
-    result = subprocess.run([
+    # Stream stderr to console in real-time AND capture it for post-mortem.
+    # Previously stderr=subprocess.PIPE hid all CUDA errors until after exit.
+    _train_log = os.path.join(BASE, 'training_stderr.log')
+    _log_fh = open(_train_log, 'w')
+    print(f"  (stderr also logged to {_train_log})")
+    train_proc = subprocess.Popen([
         sys.executable, '-m', 'microwakeword.model_train_eval',
         '--training_config=training_parameters.yaml',
         '--train=1', '--restore_checkpoint', '0',
@@ -1024,6 +1102,20 @@ except Exception as e:
         '--stride', '3',
     ], text=True, env=train_env, stderr=subprocess.PIPE)
 
+    # Tee stderr to both console and log file in real-time
+    import threading
+    def _tee_stderr(proc, log_fh):
+        for line in proc.stderr:
+            sys.stderr.write(line)
+            sys.stderr.flush()
+            log_fh.write(line)
+            log_fh.flush()
+    _tee_thread = threading.Thread(target=_tee_stderr, args=(train_proc, _log_fh), daemon=True)
+    _tee_thread.start()
+    train_proc.wait()
+    _tee_thread.join(timeout=5)
+    _log_fh.close()
+
     MODEL_SRC = ('trained_models/wakeword/tflite_stream_state_internal_quant/'
                  'stream_state_internal_quant.tflite')
 
@@ -1033,11 +1125,14 @@ except Exception as e:
         print("   1. cuDNN version mismatch (check errors above)")
         print("   2. Out of GPU memory (reduce batch_size in config)")
         print("   3. Corrupt training data\n")
-        if result.stderr:
-            print("--- Last 4000 chars of stderr ---")
-            print(result.stderr[-4000:])
-        elif result.returncode != 0:
-            print(f"   Process exited with code {result.returncode} (no stderr captured)")
+        if os.path.exists(_train_log):
+            with open(_train_log) as f:
+                _stderr_tail = f.read()[-4000:]
+            if _stderr_tail.strip():
+                print("--- Last 4000 chars of training stderr ---")
+                print(_stderr_tail)
+        if train_proc.returncode != 0:
+            print(f"\n   Process exited with code {train_proc.returncode}")
         sys.exit(1)
 
     print("✅ Training complete")
