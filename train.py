@@ -32,7 +32,7 @@ try:
     _existing = _sp.check_output(
         [_sys.executable, '-c',
          'from importlib.metadata import version; print(version("nvidia-cudnn-cu12"))'],
-        text=True, timeout=30).strip()
+        text=True, timeout=30, stderr=_sp.DEVNULL).strip()
     _existing_ok = tuple(int(x) for x in _existing.split('.')[:2]) >= (9, 3)
 except Exception:
     _existing_ok = False
@@ -42,8 +42,14 @@ if _existing_ok:
     try:
         _cudnn_lib = _sp.check_output(
             [_sys.executable, '-c',
-             'import nvidia.cudnn, os; print(os.path.dirname(nvidia.cudnn.__file__))'],
-            text=True, timeout=30).strip() + '/lib'
+             'import nvidia.cudnn, os; '
+             'f = getattr(nvidia.cudnn, "__file__", None); '
+             'print(os.path.dirname(f) if f else "")'],
+            text=True, timeout=30, stderr=_sp.DEVNULL).strip()
+        if _cudnn_lib:
+            _cudnn_lib += '/lib'
+        else:
+            _existing_ok = False
     except Exception:
         # Module structure changed in newer versions — fall back to side-install
         _existing_ok = False
@@ -109,14 +115,23 @@ def _check_nvidia_smi():
         print("[hw] nvidia-smi not found — no NVIDIA GPU driver installed.")
         return False
     try:
-        r = sp.run(['nvidia-smi', '--query-gpu=name,driver_version,memory.total,cuda_version',
+        # Try structured query first (not all drivers support all fields)
+        r = sp.run(['nvidia-smi', '--query-gpu=name,driver_version,memory.total',
                      '--format=csv,noheader'], text=True, capture_output=True, timeout=15)
-        if r.returncode != 0:
-            print(f"[hw] nvidia-smi failed (exit {r.returncode}): {r.stderr.strip()}")
-            return False
-        for line in r.stdout.strip().splitlines():
-            print(f"[hw] GPU: {line.strip()}")
-        return True
+        if r.returncode == 0 and r.stdout.strip():
+            for line in r.stdout.strip().splitlines():
+                print(f"[hw] GPU: {line.strip()}")
+            return True
+        # Fall back to plain nvidia-smi
+        r = sp.run(['nvidia-smi'], text=True, capture_output=True, timeout=15)
+        if r.returncode == 0:
+            # Print just the first few informative lines
+            for line in r.stdout.splitlines()[:4]:
+                if line.strip():
+                    print(f"[hw] {line.strip()}")
+            return True
+        print(f"[hw] nvidia-smi failed (exit {r.returncode}): {r.stderr.strip()}")
+        return False
     except Exception as e:
         print(f"[hw] nvidia-smi check failed: {e}")
         return False
