@@ -374,11 +374,18 @@ with open(_train_py_path, 'r') as f:
 if CUT_MARKER in _src:
     _src = _src[:_src.index(CUT_MARKER)]
 
+# Fix numpy 2.x compat: getattr(np,'trapezoid',np.trapz) crashes because
+# Python eagerly evaluates np.trapz even when trapezoid exists.
+_src = _src.replace(
+    "getattr(np, 'trapezoid', np.trapz)",
+    "np.trapezoid if hasattr(np, 'trapezoid') else np.trapz",
+)
+
 _patch = CUT_MARKER + r'''
 import tensorflow as _tf_patch
 
-# numpy >= 2.0 renamed trapz -> trapezoid
-_trapz_fn = getattr(np, 'trapezoid', np.trapz)
+# numpy >= 2.0 renamed trapz -> trapezoid; use hasattr to avoid eager eval crash
+_trapz_fn = np.trapezoid if hasattr(np, 'trapezoid') else np.trapz
 
 def validate_nonstreaming(config, data_processor, model, test_set):
     """Memory-efficient, Keras 3-compatible replacement for validate_nonstreaming.
