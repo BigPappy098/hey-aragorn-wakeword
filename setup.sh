@@ -38,9 +38,18 @@ else
     echo "  source $WORK_DIR/venv/bin/activate"
 fi
 
+# FFmpeg is needed for audio processing
+echo "Installing FFmpeg..."
+apt-get install -y -q ffmpeg 2>/dev/null || echo "WARNING: Could not install FFmpeg"
+
 # Pre-install slow packages so train.py doesn't have to
 echo "Installing additional dependencies..."
 pip install -q soundfile librosa "audiomentations>=0.35.0" webrtcvad
+
+# Remove torchcodec if present — it often breaks on RunPod (missing FFmpeg
+# shared libs or PyTorch version mismatch) and causes the HuggingFace datasets
+# library to crash at audio decoding.  soundfile is used as fallback.
+pip uninstall -y torchcodec 2>/dev/null || true
 
 # PyTorch: only needed for piper-tts (sample generation, not training).
 # On GPU machines, DON'T install CPU-only PyTorch — it can clobber the

@@ -566,13 +566,42 @@ except ImportError:
     import audiomentations
     importlib.reload(audiomentations)
 
-# torchcodec is optional — only needed if using HuggingFace datasets for audio
-# loading, which microWakeWord does NOT use.  It often fails on RunPod/Docker
-# because FFmpeg shared libs are missing or PyTorch version is incompatible.
+# torchcodec is NOT needed for microWakeWord training, but if it's installed
+# and broken (missing FFmpeg, PyTorch version mismatch) the HuggingFace
+# `datasets` library will crash when it tries to use torchcodec as its audio
+# decoder during spectrogram generation (Step 9).  We must fully uninstall it
+# so `datasets` falls back to soundfile/librosa.
+_torchcodec_ok = False
 try:
     import torchcodec  # noqa: F401
+    _torchcodec_ok = True
 except Exception:
-    print("[dep] torchcodec unavailable (not needed for training — skipping)")
+    pass
+
+if not _torchcodec_ok:
+    # Uninstall the broken package so datasets doesn't try to use it
+    print("[dep] torchcodec is broken or missing — uninstalling to prevent "
+          "datasets crashes (soundfile will be used instead)...")
+    subprocess.run([sys.executable, '-m', 'pip', 'uninstall', '-y', 'torchcodec'],
+                   capture_output=True)
+
+# Also tell datasets to prefer soundfile decoder (newer datasets versions)
+os.environ.setdefault('HF_AUDIO_DECODER', 'soundfile')
+
+# ── Ensure FFmpeg is installed (needed by audio processing) ──────────────────
+if not shutil.which('ffmpeg'):
+    print("[dep] FFmpeg not found — installing...")
+    _apt = ['apt-get', 'install', '-y', '-q', 'ffmpeg']
+    if os.getuid() != 0:
+        _apt = ['sudo'] + _apt
+    try:
+        subprocess.run(_apt, check=True, capture_output=True)
+        print("[dep] FFmpeg installed")
+    except Exception as e:
+        print(f"[dep] WARNING: Could not install FFmpeg ({e}). "
+              "Some audio processing may fail.")
+else:
+    print("[dep] FFmpeg found")
 
 # ── Step 4: Piper voice model ─────────────────────────────────────────────────
 print("\n[Step 4] Downloading Piper model...")
@@ -669,11 +698,7 @@ print(f"✅ {synth_count} synthetic samples generated")
 # ── Step 7b: Process + augment real recordings ───────────────────────────────
 if USING_REAL:
     print(f"\n[Step 7b] Processing real recordings → target {REAL_TARGET} augmented clips...")
-    if not shutil.which('ffmpeg'):
-        apt_cmd = ['apt-get', 'install', '-y', '-q', 'ffmpeg']
-        if os.getuid() != 0:
-            apt_cmd = ['sudo'] + apt_cmd
-        subprocess.run(apt_cmd, check=True, capture_output=True)
+    # soundfile + librosa should already be installed; ensure they are
     subprocess.run([sys.executable, '-m', 'pip', 'install', '-q', 'soundfile', 'librosa'],
                    check=True, capture_output=True)
     import soundfile as sf
