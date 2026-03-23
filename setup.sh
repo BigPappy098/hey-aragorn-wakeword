@@ -38,9 +38,10 @@ else
     echo "  source $WORK_DIR/venv/bin/activate"
 fi
 
-# FFmpeg is needed for audio processing
-echo "Installing FFmpeg..."
-apt-get install -y -q ffmpeg 2>/dev/null || echo "WARNING: Could not install FFmpeg"
+# System packages needed for audio processing and piper TTS
+echo "Installing system packages (ffmpeg, espeak-ng)..."
+apt-get install -y -q ffmpeg espeak-ng libespeak-ng-dev 2>/dev/null || \
+    echo "WARNING: Could not install system packages"
 
 # Pre-install slow packages so train.py doesn't have to
 echo "Installing additional dependencies..."

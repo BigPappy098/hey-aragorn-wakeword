@@ -359,8 +359,9 @@ subprocess.run(['git', 'clone', 'https://github.com/kahrendt/microWakeWord.git']
                check=True)
 subprocess.run([sys.executable, '-m', 'pip', 'install', '-q', '-e', 'microWakeWord'],
                check=True)
-# TensorBoard is required by tf.summary.scalar used during training
-subprocess.run([sys.executable, '-m', 'pip', 'install', '-q', 'tensorboard'],
+# Explicit installs matching the working Colab notebook
+subprocess.run([sys.executable, '-m', 'pip', 'install', '-q',
+                'tensorboard', 'datasets', 'onnxruntime', 'tqdm'],
                check=True)
 
 # Patch: fix validate_nonstreaming for Keras 3 / TF 2.18 compatibility.
@@ -373,31 +374,32 @@ with open(_train_py_path, 'r') as f:
 if CUT_MARKER in _src:
     _src = _src[:_src.index(CUT_MARKER)]
 
-_patch = CUT_MARKER + '''
-import tensorflow as tf
+_patch = CUT_MARKER + r'''
+import tensorflow as _tf_patch
 
-# numpy 2.x renamed trapz -> trapezoid
-_trapz_fn = getattr(np, "trapezoid", np.trapz)
+# numpy >= 2.0 renamed trapz -> trapezoid
+_trapz_fn = getattr(np, 'trapezoid', np.trapz)
 
 def validate_nonstreaming(config, data_processor, model, test_set):
-    """Streaming validate_nonstreaming — uses from_generator() to avoid OOM.
+    """Memory-efficient, Keras 3-compatible replacement for validate_nonstreaming.
+    Streams validation data from mmap via tf.data.Dataset.from_generator()
+    instead of loading everything into RAM at once."""
 
-    Instead of loading all validation data into RAM via get_data(), this
-    streams spectrograms one at a time from mmap via get_feature_generator().
-    """
     features_length = config["spectrogram_length"]
     bs = config["batch_size"]
 
-    if data_processor.get_mode_size(test_set) == 0:
+    total_size = data_processor.get_mode_size(test_set)
+    if total_size == 0:
         return {
-            "loss": 99.0, "accuracy": 0, "recall": 0, "precision": 0,
-            "auc": 0, "tp": 0, "fp": 0, "tn": 0, "fn": 0,
+            "accuracy": 0, "recall": 0, "precision": 0, "auc": 0, "loss": 99,
             "recall_at_no_faph": 0, "cutoff_for_no_faph": 0,
             "ambient_false_positives": 0, "ambient_false_positives_per_hour": 0,
             "average_viable_recall": 0,
         }
 
     def _make_gen(mode, trunc):
+        """Returns a generator function that streams (spectrogram, label) pairs
+        from all feature providers' mmap files — no bulk RAM allocation."""
         def gen():
             for provider in data_processor.feature_providers:
                 if provider.get_mode_size(mode) == 0:
@@ -408,67 +410,85 @@ def validate_nonstreaming(config, data_processor, model, test_set):
         return gen
 
     out_sig = (
-        tf.TensorSpec(shape=(features_length, 40), dtype=tf.float32),
-        tf.TensorSpec(shape=(1,),                   dtype=tf.float32),
+        _tf_patch.TensorSpec(shape=(features_length, 40), dtype=_tf_patch.float32),
+        _tf_patch.TensorSpec(shape=(1,), dtype=_tf_patch.float32),
     )
 
-    # ── Primary test set ──
+    # Count samples and compute batch steps so Keras knows when data ends
     gen_fn = _make_gen(test_set, "truncate_start")
     n_samples = sum(1 for _ in gen_fn())
     n_steps = n_samples // bs
+
     if n_steps == 0:
         return {
-            "loss": 99.0, "accuracy": 0, "recall": 0, "precision": 0,
-            "auc": 0, "tp": 0, "fp": 0, "tn": 0, "fn": 0,
+            "accuracy": 0, "recall": 0, "precision": 0, "auc": 0, "loss": 99,
             "recall_at_no_faph": 0, "cutoff_for_no_faph": 0,
             "ambient_false_positives": 0, "ambient_false_positives_per_hour": 0,
             "average_viable_recall": 0,
         }
 
-    ds = (tf.data.Dataset.from_generator(gen_fn, output_signature=out_sig)
-          .batch(bs, drop_remainder=True).prefetch(tf.data.AUTOTUNE))
+    ds = _tf_patch.data.Dataset.from_generator(
+        gen_fn, output_signature=out_sig
+    ).batch(bs, drop_remainder=True).prefetch(_tf_patch.data.AUTOTUNE)
+
     model.reset_metrics()
     result = model.evaluate(ds, steps=n_steps, return_dict=True, verbose=0)
 
-    def _v(d, k):
-        v = d.get(k, d.get("binary_" + k, 0))
-        return v.numpy() if hasattr(v, "numpy") else v
+    if isinstance(result, (list, tuple)):
+        names = [m.name for m in model.metrics]
+        result = dict(zip(names, result))
 
-    metrics = {
-        "accuracy": _v(result, "accuracy"),
-        "recall":   _v(result, "recall"),
-        "precision":_v(result, "precision"),
-        "auc":      _v(result, "auc"),
-        "loss":     _v(result, "loss"),
-        "recall_at_no_faph": 0, "cutoff_for_no_faph": 0,
-        "ambient_false_positives": 0, "ambient_false_positives_per_hour": 0,
-        "average_viable_recall": 0,
-    }
-    test_set_fp = _v(result, "fp")
+    def _as_numpy(v):
+        return v.numpy() if hasattr(v, 'numpy') else np.array(v)
 
-    # ── Ambient set ──
-    ambient_mode = test_set + "_ambient"
-    if data_processor.get_mode_size(ambient_mode) > 0:
-        amb_gen = _make_gen(ambient_mode, "split")
-        amb_n = sum(1 for _ in amb_gen())
-        amb_steps = amb_n // bs
+    metrics = {}
+    metrics["accuracy"] = result["accuracy"]
+    metrics["recall"] = result["recall"]
+    metrics["precision"] = result["precision"]
+    metrics["auc"] = result["auc"]
+    metrics["loss"] = result["loss"]
+    metrics["recall_at_no_faph"] = 0
+    metrics["cutoff_for_no_faph"] = 0
+    metrics["ambient_false_positives"] = 0
+    metrics["ambient_false_positives_per_hour"] = 0
+    metrics["average_viable_recall"] = 0
+
+    test_set_fp = _as_numpy(result["fp"])
+
+    if data_processor.get_mode_size("validation_ambient") > 0:
+        amb_gen_fn = _make_gen(test_set + "_ambient", "split")
+        amb_count = sum(1 for _ in amb_gen_fn())
+        amb_steps = amb_count // bs
+
         if amb_steps > 0:
-            amb_ds = (tf.data.Dataset.from_generator(amb_gen, output_signature=out_sig)
-                      .batch(bs, drop_remainder=True).prefetch(tf.data.AUTOTUNE))
+            amb_ds = _tf_patch.data.Dataset.from_generator(
+                amb_gen_fn, output_signature=out_sig
+            ).batch(bs, drop_remainder=True).prefetch(_tf_patch.data.AUTOTUNE)
+
             with swap_attribute(model, "reset_metrics", lambda: None):
-                ambient_result = model.evaluate(amb_ds, steps=amb_steps,
-                                                return_dict=True, verbose=0)
+                ambient_predictions = model.evaluate(
+                    amb_ds, steps=amb_steps, return_dict=True, verbose=0,
+                )
 
-            duration_hours = data_processor.get_mode_duration(ambient_mode) / 3600.0
-            all_tp = _v(ambient_result, "tp")
-            ambient_fp = _v(ambient_result, "fp") - test_set_fp
-            all_fn = _v(ambient_result, "fn")
+            if isinstance(ambient_predictions, (list, tuple)):
+                names = [m.name for m in model.metrics]
+                ambient_predictions = dict(zip(names, ambient_predictions))
 
-            metrics["auc"]  = _v(ambient_result, "auc")
-            metrics["loss"] = _v(ambient_result, "loss")
+            duration_of_ambient_set = (
+                data_processor.get_mode_duration("validation_ambient") / 3600.0
+            )
 
-            recall_at_cutoffs = all_tp / (all_tp + all_fn)
-            faph_at_cutoffs = ambient_fp / duration_hours
+            all_true_positives = _as_numpy(ambient_predictions["tp"])
+            ambient_false_positives = _as_numpy(ambient_predictions["fp"]) - test_set_fp
+            all_false_negatives = _as_numpy(ambient_predictions["fn"])
+
+            metrics["auc"] = ambient_predictions["auc"]
+            metrics["loss"] = ambient_predictions["loss"]
+
+            recall_at_cutoffs = (
+                all_true_positives / (all_true_positives + all_false_negatives)
+            )
+            faph_at_cutoffs = ambient_false_positives / duration_of_ambient_set
 
             target_faph_cutoff_probability = 1.0
             recall_at_no_faph = 0
@@ -480,17 +500,13 @@ def validate_nonstreaming(config, data_processor, model, test_set):
 
             if faph_at_cutoffs[0] > 2:
                 index_of_first_viable = 1
-                while (index_of_first_viable < len(faph_at_cutoffs)
-                       and faph_at_cutoffs[index_of_first_viable] > 2):
+                while faph_at_cutoffs[index_of_first_viable] > 2:
                     index_of_first_viable += 1
-                if index_of_first_viable >= len(faph_at_cutoffs):
-                    recall_at_2faph = 0
-                else:
-                    x0 = faph_at_cutoffs[index_of_first_viable - 1]
-                    y0 = recall_at_cutoffs[index_of_first_viable - 1]
-                    x1 = faph_at_cutoffs[index_of_first_viable]
-                    y1 = recall_at_cutoffs[index_of_first_viable]
-                    recall_at_2faph = (y0 * (x1 - 2.0) + y1 * (2.0 - x0)) / (x1 - x0)
+                x0 = faph_at_cutoffs[index_of_first_viable - 1]
+                y0 = recall_at_cutoffs[index_of_first_viable - 1]
+                x1 = faph_at_cutoffs[index_of_first_viable]
+                y1 = recall_at_cutoffs[index_of_first_viable]
+                recall_at_2faph = (y0 * (x1 - 2.0) + y1 * (2.0 - x0)) / (x1 - x0)
             else:
                 index_of_first_viable = 0
                 recall_at_2faph = recall_at_cutoffs[0]
@@ -508,7 +524,7 @@ def validate_nonstreaming(config, data_processor, model, test_set):
 
             metrics["recall_at_no_faph"] = recall_at_no_faph
             metrics["cutoff_for_no_faph"] = target_faph_cutoff_probability
-            metrics["ambient_false_positives"] = ambient_fp[50]
+            metrics["ambient_false_positives"] = ambient_false_positives[50]
             metrics["ambient_false_positives_per_hour"] = faph_at_cutoffs[50]
             metrics["average_viable_recall"] = average_viable_recall
 
@@ -588,20 +604,25 @@ if not _torchcodec_ok:
 # Also tell datasets to prefer soundfile decoder (newer datasets versions)
 os.environ.setdefault('HF_AUDIO_DECODER', 'soundfile')
 
-# ── Ensure FFmpeg is installed (needed by audio processing) ──────────────────
+# ── Ensure system packages are installed (ffmpeg, espeak-ng) ─────────────────
+_sys_pkgs = []
 if not shutil.which('ffmpeg'):
-    print("[dep] FFmpeg not found — installing...")
-    _apt = ['apt-get', 'install', '-y', '-q', 'ffmpeg']
+    _sys_pkgs.append('ffmpeg')
+if not shutil.which('espeak-ng'):
+    _sys_pkgs.append('espeak-ng')
+    _sys_pkgs.append('libespeak-ng-dev')
+if _sys_pkgs:
+    print(f"[dep] Installing system packages: {' '.join(_sys_pkgs)}...")
+    _apt = ['apt-get', 'install', '-y', '-q'] + _sys_pkgs
     if os.getuid() != 0:
         _apt = ['sudo'] + _apt
     try:
         subprocess.run(_apt, check=True, capture_output=True)
-        print("[dep] FFmpeg installed")
+        print(f"[dep] System packages installed")
     except Exception as e:
-        print(f"[dep] WARNING: Could not install FFmpeg ({e}). "
-              "Some audio processing may fail.")
+        print(f"[dep] WARNING: Could not install system packages ({e}).")
 else:
-    print("[dep] FFmpeg found")
+    print("[dep] System packages OK (ffmpeg, espeak-ng)")
 
 # ── Step 4: Piper voice model ─────────────────────────────────────────────────
 print("\n[Step 4] Downloading Piper model...")
@@ -907,7 +928,7 @@ if os.path.islink(val_dir):
     os.unlink(val_dir)
 elif os.path.isdir(val_dir):
     shutil.rmtree(val_dir)
-os.symlink(os.path.basename(test_dir), val_dir)
+os.symlink(os.path.abspath(test_dir), val_dir)
 print("  Created validation/ → testing/ symlink")
 
 mmap_tr = RaggedMmap(MMAP_TRAIN)
