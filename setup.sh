@@ -9,10 +9,16 @@ WORK_DIR="${WORK_DIR:-/workspace/training}"
 cd "$WORK_DIR"
 
 # Detect if we're on a GPU machine (RunPod, etc.)
+# Some RunPod containers have nvidia-smi issues (exit 2) even with a working GPU,
+# so also check for /dev/nvidia0 as a fallback.
 HAS_GPU=false
 if command -v nvidia-smi &>/dev/null && nvidia-smi &>/dev/null; then
     HAS_GPU=true
-    echo "GPU detected: $(nvidia-smi --query-gpu=name --format=csv,noheader 2>/dev/null | head -1)"
+    GPU_NAME=$(nvidia-smi --query-gpu=name --format=csv,noheader 2>/dev/null | head -1)
+    echo "GPU detected: ${GPU_NAME:-unknown}"
+elif [ -e /dev/nvidia0 ]; then
+    HAS_GPU=true
+    echo "GPU detected: /dev/nvidia0 exists (nvidia-smi unavailable)"
 fi
 
 # Try direct pip first (works on RunPod / Docker as root).
@@ -34,7 +40,7 @@ fi
 
 # Pre-install slow packages so train.py doesn't have to
 echo "Installing additional dependencies..."
-pip install -q soundfile librosa "audiomentations>=0.35.0" webrtcvad torchcodec
+pip install -q soundfile librosa "audiomentations>=0.35.0" webrtcvad
 
 # PyTorch: only needed for piper-tts (sample generation, not training).
 # On GPU machines, DON'T install CPU-only PyTorch — it can clobber the

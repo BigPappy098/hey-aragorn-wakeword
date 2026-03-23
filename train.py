@@ -111,30 +111,48 @@ def _get_ram_gb(kind='MemTotal'):
 def _check_nvidia_smi():
     """Early GPU/driver sanity check. Prints info and returns True if GPU usable."""
     import subprocess as sp
-    if not shutil.which('nvidia-smi'):
-        print("[hw] nvidia-smi not found — no NVIDIA GPU driver installed.")
+
+    has_smi = shutil.which('nvidia-smi')
+    has_dev = os.path.exists('/dev/nvidia0')
+
+    if not has_smi and not has_dev:
+        print("[hw] No NVIDIA GPU detected (no nvidia-smi, no /dev/nvidia0).")
         return False
-    try:
-        # Try structured query first (not all drivers support all fields)
-        r = sp.run(['nvidia-smi', '--query-gpu=name,driver_version,memory.total',
-                     '--format=csv,noheader'], text=True, capture_output=True, timeout=15)
-        if r.returncode == 0 and r.stdout.strip():
-            for line in r.stdout.strip().splitlines():
-                print(f"[hw] GPU: {line.strip()}")
-            return True
-        # Fall back to plain nvidia-smi
-        r = sp.run(['nvidia-smi'], text=True, capture_output=True, timeout=15)
-        if r.returncode == 0:
-            # Print just the first few informative lines
-            for line in r.stdout.splitlines()[:4]:
-                if line.strip():
-                    print(f"[hw] {line.strip()}")
-            return True
-        print(f"[hw] nvidia-smi failed (exit {r.returncode}): {r.stderr.strip()}")
-        return False
-    except Exception as e:
-        print(f"[hw] nvidia-smi check failed: {e}")
-        return False
+
+    if has_smi:
+        try:
+            # Try structured query first (not all drivers support all fields)
+            r = sp.run(['nvidia-smi', '--query-gpu=name,driver_version,memory.total',
+                         '--format=csv,noheader'], text=True, capture_output=True, timeout=15)
+            if r.returncode == 0 and r.stdout.strip():
+                for line in r.stdout.strip().splitlines():
+                    print(f"[hw] GPU: {line.strip()}")
+                return True
+            # Fall back to plain nvidia-smi
+            r = sp.run(['nvidia-smi'], text=True, capture_output=True, timeout=15)
+            if r.returncode == 0:
+                for line in r.stdout.splitlines()[:4]:
+                    if line.strip():
+                        print(f"[hw] {line.strip()}")
+                return True
+            # nvidia-smi failed but /dev/nvidia0 exists — GPU likely usable
+            if has_dev:
+                print(f"[hw] nvidia-smi returned exit {r.returncode} but /dev/nvidia0 "
+                      f"exists — assuming GPU is available")
+                return True
+            print(f"[hw] nvidia-smi failed (exit {r.returncode}): {r.stderr.strip()}")
+            return False
+        except Exception as e:
+            if has_dev:
+                print(f"[hw] nvidia-smi errored ({e}) but /dev/nvidia0 exists — "
+                      f"assuming GPU is available")
+                return True
+            print(f"[hw] nvidia-smi check failed: {e}")
+            return False
+
+    # No nvidia-smi but /dev/nvidia0 exists (container with GPU pass-through)
+    print("[hw] /dev/nvidia0 detected (nvidia-smi not in PATH) — GPU likely available")
+    return True
 
 TOTAL_RAM_GB = _get_ram_gb('MemTotal')
 HAS_NVIDIA_DRIVER = _check_nvidia_smi()
@@ -548,12 +566,13 @@ except ImportError:
     import audiomentations
     importlib.reload(audiomentations)
 
+# torchcodec is optional — only needed if using HuggingFace datasets for audio
+# loading, which microWakeWord does NOT use.  It often fails on RunPod/Docker
+# because FFmpeg shared libs are missing or PyTorch version is incompatible.
 try:
     import torchcodec  # noqa: F401
-except ImportError:
-    print("[dep] torchcodec not found — installing (needed by datasets for audio)...")
-    subprocess.run([sys.executable, '-m', 'pip', 'install', '-q', 'torchcodec'],
-                   check=True)
+except Exception:
+    print("[dep] torchcodec unavailable (not needed for training — skipping)")
 
 # ── Step 4: Piper voice model ─────────────────────────────────────────────────
 print("\n[Step 4] Downloading Piper model...")
