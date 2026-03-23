@@ -1,0 +1,416 @@
+[init] cuDNN 9.3.0 libs ready at: /usr/local/lib/cudnn-9.3/nvidia/cudnn/lib
+[init] cuDNN path set: /usr/local/lib/cudnn-9.3/nvidia/cudnn/lib
+[hw] GPU: NVIDIA GeForce RTX 4090, 580.126.16, 24564 MiB
+
+=== microWakeWord Custom Trainer ===
+
+Enter wake word phonetically (e.g. hey_air_uh_gorn):   → Using: hey_airuh_gorn
+
+Number of voice samples [default: 1000, better quality: 2000-5000]:   → Samples: 5000
+
+Training steps [default: 20000, better quality: 20000-30000]:   → Training steps: 30000
+
+  → GitHub repo: BigPappy098/hey-aragorn-wakeword
+  → GitHub token: ghp_...LUKD (40 chars)
+[Cleanup] Removing previous training artifacts...
+  Removed generated_samples/
+  Removed generated_augmented_features/
+  Removed microWakeWord/
+[Cleanup] Done.
+📂 No real recordings found in real_recordings/
+Would you like to upload real recordings to GitHub first? [y/n]: 📢 Skipping real recordings — using 100% synthetic samples.
+
+[Step 3] Cloning microWakeWord + piper-sample-generator...
+Cloning into 'microWakeWord'...
+WARNING: Running pip as the 'root' user can result in broken permissions and conflicting behaviour with the system package manager, possibly rendering your system unusable. It is recommended to use a virtual environment instead: https://pip.pypa.io/warnings/venv. Use the --root-user-action option if you know what you are doing and want to suppress this warning.
+WARNING: Running pip as the 'root' user can result in broken permissions and conflicting behaviour with the system package manager, possibly rendering your system unusable. It is recommended to use a virtual environment instead: https://pip.pypa.io/warnings/venv. Use the --root-user-action option if you know what you are doing and want to suppress this warning.
+✅ Repos ready
+[dep] PyTorch 2.11.0+cu130 already installed — keeping it
+[dep] torchcodec not available: Could not load libtorchcodec. Likely causes:
+          1. FFmpeg is not properly installed in your environment. We support
+             versions 4, 5, 6, 7, and 8, and we attempt to load libtorchcodec
+             for each of those versions. Errors for versions not installed on
+             your system are expected; only the error for your installed FFmpeg
+             version is relevant. On Windows, ensure you've installed the
+             "full-shared" version which ships DLLs.
+          2. The PyTorch version (2.11.0+cu130) is not compatible with
+             this version of TorchCodec. Refer to the version compatibility
+             table:
+             https://github.com/pytorch/torchcodec?tab=readme-ov-file#installing-torchcodec.
+          3. Another runtime dependency; see exceptions below.
+
+        The following exceptions were raised as we tried to load libtorchcodec:
+        
+[start of libtorchcodec loading traceback]
+FFmpeg version 8:
+Traceback (most recent call last):
+  File "/usr/local/lib/python3.11/dist-packages/torch/_ops.py", line 1503, in load_library
+    ctypes.CDLL(path)
+  File "/usr/lib/python3.11/ctypes/__init__.py", line 376, in __init__
+    self._handle = _dlopen(self._name, mode)
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^
+OSError: libavutil.so.60: cannot open shared object file: No such file or directory
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "/usr/local/lib/python3.11/dist-packages/torchcodec/_core/ops.py", line 57, in load_torchcodec_shared_libraries
+    torch.ops.load_library(core_library_path)
+  File "/usr/local/lib/python3.11/dist-packages/torch/_ops.py", line 1505, in load_library
+    raise OSError(f"Could not load this library: {path}") from e
+OSError: Could not load this library: /usr/local/lib/python3.11/dist-packages/torchcodec/libtorchcodec_core8.so
+
+FFmpeg version 7:
+Traceback (most recent call last):
+  File "/usr/local/lib/python3.11/dist-packages/torch/_ops.py", line 1503, in load_library
+    ctypes.CDLL(path)
+  File "/usr/lib/python3.11/ctypes/__init__.py", line 376, in __init__
+    self._handle = _dlopen(self._name, mode)
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^
+OSError: libavutil.so.59: cannot open shared object file: No such file or directory
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "/usr/local/lib/python3.11/dist-packages/torchcodec/_core/ops.py", line 57, in load_torchcodec_shared_libraries
+    torch.ops.load_library(core_library_path)
+  File "/usr/local/lib/python3.11/dist-packages/torch/_ops.py", line 1505, in load_library
+    raise OSError(f"Could not load this library: {path}") from e
+OSError: Could not load this library: /usr/local/lib/python3.11/dist-packages/torchcodec/libtorchcodec_core7.so
+
+FFmpeg version 6:
+Traceback (most recent call last):
+  File "/usr/local/lib/python3.11/dist-packages/torch/_ops.py", line 1503, in load_library
+    ctypes.CDLL(path)
+  File "/usr/lib/python3.11/ctypes/__init__.py", line 376, in __init__
+    self._handle = _dlopen(self._name, mode)
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^
+OSError: libavutil.so.58: cannot open shared object file: No such file or directory
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "/usr/local/lib/python3.11/dist-packages/torchcodec/_core/ops.py", line 57, in load_torchcodec_shared_libraries
+    torch.ops.load_library(core_library_path)
+  File "/usr/local/lib/python3.11/dist-packages/torch/_ops.py", line 1505, in load_library
+    raise OSError(f"Could not load this library: {path}") from e
+OSError: Could not load this library: /usr/local/lib/python3.11/dist-packages/torchcodec/libtorchcodec_core6.so
+
+FFmpeg version 5:
+Traceback (most recent call last):
+  File "/usr/local/lib/python3.11/dist-packages/torch/_ops.py", line 1503, in load_library
+    ctypes.CDLL(path)
+  File "/usr/lib/python3.11/ctypes/__init__.py", line 376, in __init__
+    self._handle = _dlopen(self._name, mode)
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^
+OSError: libavutil.so.57: cannot open shared object file: No such file or directory
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "/usr/local/lib/python3.11/dist-packages/torchcodec/_core/ops.py", line 57, in load_torchcodec_shared_libraries
+    torch.ops.load_library(core_library_path)
+  File "/usr/local/lib/python3.11/dist-packages/torch/_ops.py", line 1505, in load_library
+    raise OSError(f"Could not load this library: {path}") from e
+OSError: Could not load this library: /usr/local/lib/python3.11/dist-packages/torchcodec/libtorchcodec_core5.so
+
+FFmpeg version 4:
+Traceback (most recent call last):
+  File "/usr/local/lib/python3.11/dist-packages/torch/_ops.py", line 1503, in load_library
+    ctypes.CDLL(path)
+  File "/usr/lib/python3.11/ctypes/__init__.py", line 376, in __init__
+    self._handle = _dlopen(self._name, mode)
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^
+OSError: /usr/local/lib/python3.11/dist-packages/torchcodec/libtorchcodec_core4.so: undefined symbol: _ZN3c1013MessageLoggerC1EPKciib
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "/usr/local/lib/python3.11/dist-packages/torchcodec/_core/ops.py", line 57, in load_torchcodec_shared_libraries
+    torch.ops.load_library(core_library_path)
+  File "/usr/local/lib/python3.11/dist-packages/torch/_ops.py", line 1505, in load_library
+    raise OSError(f"Could not load this library: {path}") from e
+OSError: Could not load this library: /usr/local/lib/python3.11/dist-packages/torchcodec/libtorchcodec_core4.so
+[end of libtorchcodec loading traceback].
+[dep] Installing FFmpeg dev libraries for torchcodec...
+[dep] FFmpeg dev libraries installed
+[dep] Installing torchcodec...
+[dep] torchcodec still broken: Traceback (most recent call last):
+  File "<string>", line 1, in <module>
+  File "/usr/local/lib/python3.11/dist-packages/torchcodec/__init__.py", line 12, in <module>
+    from . import decoders, encoders, samplers, transforms  # noqa
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.11/dist-packages/torchcodec/decoders/__init__.py", line 7, in <module>
+    from .._core import AudioStreamMetadata, VideoStreamMetadata
+  File "/usr/local/lib/python3.11/dist-packages/torchcodec/_core/__init__.py", line 8, in <module>
+    from ._metadata import (
+  File "/usr/local/lib/python3.11/dist-packages/torchcodec/_core/_metadata.py", line 16, in <module>
+    from torchcodec._core.ops import (
+  File "/usr/local/lib/python3.11/dist-packages/torchcodec/_core/ops.py", line 109, in <module>
+    ffmpeg_major_version, core_library_path = load_torchcodec_shared_libraries()
+                                              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.11/dist-packages/torchcodec/_core/ops.py", line 76, in load_torchcodec_shared_libraries
+    raise RuntimeError(
+RuntimeError: Could not load libtorchcodec. Likely causes:
+          1. FFmpeg is not properly installed in your environment. We support
+             versions 4, 5, 6, 7, and 8, and we attempt to load libtorchcodec
+             for each of those versions. Errors for versions not installed on
+             your system are expected; only the error for your installed FFmpeg
+             version is relevant. On Windows, ensure you've installed the
+             "full-shared" version which ships DLLs.
+          2. The PyTorch version (2.11.0+cu130) is not compatible with
+             this version of TorchCodec. Refer to the version compatibility
+             table:
+             https://github.com/pytorch/torchcodec?tab=readme-ov-file#installing-torchcodec.
+          3. Another runtime dependency; see exceptions below.
+
+        The following exceptions were raised as we tried to load libtorchcodec:
+        
+[start of libtorchcodec loading traceback]
+FFmpeg version 8:
+Traceback (most recent call last):
+  File "/usr/local/lib/python3.11/dist-packages/torch/_ops.py", line 1503, in load_library
+    ctypes.CDLL(path)
+  File "/usr/lib/python3.11/ctypes/__init__.py", line 376, in __init__
+    self._handle = _dlopen(self._name, mode)
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^
+OSError: libavutil.so.60: cannot open shared object file: No such file or directory
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "/usr/local/lib/python3.11/dist-packages/torchcodec/_core/ops.py", line 57, in load_torchcodec_shared_libraries
+    torch.ops.load_library(core_library_path)
+  File "/usr/local/lib/python3.11/dist-packages/torch/_ops.py", line 1505, in load_library
+    raise OSError(f"Could not load this library: {path}") from e
+OSError: Could not load this library: /usr/local/lib/python3.11/dist-packages/torchcodec/libtorchcodec_core8.so
+
+FFmpeg version 7:
+Traceback (most recent call last):
+  File "/usr/local/lib/python3.11/dist-packages/torch/_ops.py", line 1503, in load_library
+    ctypes.CDLL(path)
+  File "/usr/lib/python3.11/ctypes/__init__.py", line 376, in __init__
+    self._handle = _dlopen(self._name, mode)
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^
+OSError: libavutil.so.59: cannot open shared object file: No such file or directory
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "/usr/local/lib/python3.11/dist-packages/torchcodec/_core/ops.py", line 57, in load_torchcodec_shared_libraries
+    torch.ops.load_library(core_library_path)
+  File "/usr/local/lib/python3.11/dist-packages/torch/_ops.py", line 1505, in load_library
+    raise OSError(f"Could not load this library: {path}") from e
+OSError: Could not load this library: /usr/local/lib/python3.11/dist-packages/torchcodec/libtorchcodec_core7.so
+
+FFmpeg version 6:
+Traceback (most recent call last):
+  File "/usr/local/lib/python3.11/dist-packages/torch/_ops.py", line 1503, in load_library
+    ctypes.CDLL(path)
+  File "/usr/lib/python3.11/ctypes/__init__.py", line 376, in __init__
+    self._handle = _dlopen(self._name, mode)
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^
+OSError: libavutil.so.58: cannot open shared object file: No such file or directory
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "/usr/local/lib/python3.11/dist-packages/torchcodec/_core/ops.py", line 57, in load_torchcodec_shared_libraries
+    torch.ops.load_library(core_library_path)
+  File "/usr/local/lib/python3.11/dist-packages/torch/_ops.py", line 1505, in load_library
+    raise OSError(f"Could not load this library: {path}") from e
+OSError: Could not load this library: /usr/local/lib/python3.11/dist-packages/torchcodec/libtorchcodec_core6.so
+
+FFmpeg version 5:
+Traceback (most recent call last):
+  File "/usr/local/lib/python3.11/dist-packages/torch/_ops.py", line 1503, in load_library
+    ctypes.CDLL(path)
+  File "/usr/lib/python3.11/ctypes/__init__.py", line 376, in __init__
+    self._handle = _dlopen(self._name, mode)
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^
+OSError: libavutil.so.57: cannot open shared object file: No such file or directory
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "/usr/local/lib/python3.11/dist-packages/torchcodec/_core/ops.py", line 57, in load_torchcodec_shared_libraries
+    torch.ops.load_library(core_library_path)
+  File "/usr/local/lib/python3.11/dist-packages/torch/_ops.py", line 1505, in load_library
+    raise OSError(f"Could not load this library: {path}") from e
+OSError: Could not load this library: /usr/local/lib/python3.11/dist-packages/torchcodec/libtorchcodec_core5.so
+
+FFmpeg version 4:
+Traceback (most recent call last):
+  File "/usr/local/lib/python3.11/dist-packages/torch/_ops.py", line 1503, in load_library
+    ctypes.CDLL(path)
+  File "/usr/lib/python3.11/ctypes/__init__.py", line 376, in __init__
+    self._handle = _dlopen(self._name, mode)
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^
+OSError: /usr/local/lib/python3.11/dist-packages/torchcodec/libtorchcodec_core4.so: undefined symbol: _ZN3c1013MessageLoggerC1EPKciib
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "/usr/local/lib/python3.11/dist-packages/torchcodec/_core/ops.py", line 57, in load_torchcodec_shared_libraries
+    torch.ops.load_library(core_library_path)
+  File "/usr/local/lib/python3.11/dist-packages/torch/_ops.py", line 1505, in load_library
+    raise OSError(f"Could not load this library: {path}") from e
+OSError: Could not load this library: /usr/local/lib/python3.11/dist-packages/torchcodec/libtorchcodec_core4.so
+[end of libtorchcodec loading traceback].
+[dep] Falling back to datasets<3 (uses soundfile, no torchcodec)...
+WARNING: Running pip as the 'root' user can result in broken permissions and conflicting behaviour with the system package manager, possibly rendering your system unusable. It is recommended to use a virtual environment instead: https://pip.pypa.io/warnings/venv. Use the --root-user-action option if you know what you are doing and want to suppress this warning.
+[dep] Installed datasets<3 as fallback
+[dep] System packages OK (ffmpeg, espeak-ng)
+
+[Step 4] Downloading Piper model...
+✅ Piper model ready
+
+[Preview] Generating 1 sample to preview pronunciation...
+DEBUG:__main__:Loading piper-sample-generator/models/en_US-libritts_r-medium.pt
+INFO:__main__:Successfully loaded the model
+DEBUG:__main__:CUDA available, using GPU
+DEBUG:__main__:Batch 1/1 complete
+INFO:__main__:Done
+[main 3c36a00] Preview sample: hey_airuh_gorn
+ 1 file changed, 0 insertions(+), 0 deletions(-)
+ rewrite models/preview_hey_airuh_gorn.wav (99%)
+  ✅ Pushed to main
+
+🔊 Preview pushed to GitHub!
+   Go to: https://github.com/BigPappy098/hey-aragorn-wakeword/blob/main/models/preview_hey_airuh_gorn.wav
+   Play the .wav file to check pronunciation.
+
+Does the pronunciation sound correct? [y/n]: ✅ Pronunciation confirmed, continuing...
+
+
+[Step 7] Generating 5000 synthetic samples for 'hey_airuh_gorn'...
+DEBUG:__main__:Loading piper-sample-generator/models/en_US-libritts_r-medium.pt
+INFO:__main__:Successfully loaded the model
+DEBUG:__main__:CUDA available, using GPU
+DEBUG:__main__:Batch 1/50 complete
+DEBUG:__main__:Batch 2/50 complete
+DEBUG:__main__:Batch 3/50 complete
+DEBUG:__main__:Batch 4/50 complete
+DEBUG:__main__:Batch 5/50 complete
+DEBUG:__main__:Batch 6/50 complete
+DEBUG:__main__:Batch 7/50 complete
+DEBUG:__main__:Batch 8/50 complete
+DEBUG:__main__:Batch 9/50 complete
+DEBUG:__main__:Batch 10/50 complete
+DEBUG:__main__:Batch 11/50 complete
+DEBUG:__main__:Batch 12/50 complete
+DEBUG:__main__:Batch 13/50 complete
+DEBUG:__main__:Batch 14/50 complete
+DEBUG:__main__:Batch 15/50 complete
+DEBUG:__main__:Batch 16/50 complete
+DEBUG:__main__:Batch 17/50 complete
+DEBUG:__main__:Batch 18/50 complete
+DEBUG:__main__:Batch 19/50 complete
+DEBUG:__main__:Batch 20/50 complete
+DEBUG:__main__:Batch 21/50 complete
+DEBUG:__main__:Batch 22/50 complete
+DEBUG:__main__:Batch 23/50 complete
+DEBUG:__main__:Batch 24/50 complete
+DEBUG:__main__:Batch 25/50 complete
+DEBUG:__main__:Batch 26/50 complete
+DEBUG:__main__:Batch 27/50 complete
+DEBUG:__main__:Batch 28/50 complete
+DEBUG:__main__:Batch 29/50 complete
+DEBUG:__main__:Batch 30/50 complete
+DEBUG:__main__:Batch 31/50 complete
+DEBUG:__main__:Batch 32/50 complete
+DEBUG:__main__:Batch 33/50 complete
+DEBUG:__main__:Batch 34/50 complete
+DEBUG:__main__:Batch 35/50 complete
+DEBUG:__main__:Batch 36/50 complete
+DEBUG:__main__:Batch 37/50 complete
+DEBUG:__main__:Batch 38/50 complete
+DEBUG:__main__:Batch 39/50 complete
+DEBUG:__main__:Batch 40/50 complete
+DEBUG:__main__:Batch 41/50 complete
+DEBUG:__main__:Batch 42/50 complete
+DEBUG:__main__:Batch 43/50 complete
+DEBUG:__main__:Batch 44/50 complete
+DEBUG:__main__:Batch 45/50 complete
+DEBUG:__main__:Batch 46/50 complete
+DEBUG:__main__:Batch 47/50 complete
+DEBUG:__main__:Batch 48/50 complete
+DEBUG:__main__:Batch 49/50 complete
+DEBUG:__main__:Batch 50/50 complete
+INFO:__main__:Done
+✅ 5000 synthetic samples generated
+
+[Step 8] Downloading RIRs + background noise (~1.3 GB)...
+✅ Augmentation data ready
+
+[Step 9] Generating spectrograms...
+WARNING: All log messages before absl::InitializeLog() is called are written to STDERR
+I0000 00:00:1774308005.671993    4991 cpu_feature_guard.cc:227] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
+To enable the following instructions: AVX2 FMA, in other operations, rebuild TensorFlow with the appropriate compiler flags.
+  Writing train split...
+0it [00:00, ?it/s]1it [00:12, 12.14s/it]100it [00:12, 11.39it/s]200it [00:12, 25.76it/s]300it [00:13, 45.30it/s]400it [00:13, 71.81it/s]500it [00:13, 104.94it/s]600it [00:13, 150.01it/s]700it [00:14, 163.39it/s]800it [00:14, 222.49it/s]900it [00:14, 255.97it/s]1051it [00:14, 383.08it/s]1181it [00:14, 495.47it/s]1300it [00:14, 586.44it/s]1400it [00:14, 620.94it/s]1500it [00:14, 667.77it/s]1600it [00:15, 601.74it/s]1700it [00:15, 579.44it/s]1800it [00:15, 633.16it/s]1900it [00:15, 652.14it/s]2000it [00:15, 688.07it/s]2100it [00:15, 720.15it/s]2200it [00:15, 751.91it/s]2300it [00:16, 769.94it/s]2400it [00:16, 535.53it/s]2500it [00:16, 587.57it/s]2600it [00:16, 634.20it/s]2700it [00:16, 609.91it/s]2800it [00:17, 562.62it/s]2900it [00:17, 596.55it/s]3000it [00:17, 673.46it/s]3100it [00:17, 492.41it/s]3200it [00:17, 565.09it/s]3321it [00:17, 687.23it/s]3405it [00:17, 687.80it/s]3500it [00:18, 716.72it/s]3600it [00:18, 747.98it/s]3700it [00:18, 654.06it/s]3800it [00:18, 684.53it/s]3911it [00:18, 781.27it/s]4000it [00:18, 611.06it/s]4100it [00:19, 659.41it/s]4200it [00:19, 681.56it/s]4300it [00:19, 717.94it/s]4411it [00:19, 809.61it/s]4531it [00:19, 896.00it/s]4626it [00:19, 821.32it/s]4731it [00:19, 863.98it/s]4821it [00:19, 851.40it/s]4909it [00:19, 777.16it/s]5021it [00:20, 857.08it/s]5110it [00:20, 859.40it/s]5200it [00:20, 818.45it/s]5300it [00:20, 848.32it/s]5400it [00:20, 856.63it/s]5500it [00:20, 823.78it/s]5600it [00:20, 832.84it/s]5701it [00:20, 868.97it/s]5861it [00:20, 1052.38it/s]5981it [00:21, 1074.55it/s]6091it [00:21, 1071.06it/s]6201it [00:21, 1050.13it/s]6351it [00:21, 1161.96it/s]6481it [00:21, 1168.28it/s]6600it [00:21, 1158.81it/s]6731it [00:21, 1175.07it/s]6851it [00:21, 1044.87it/s]6981it [00:21, 1098.21it/s]7101it [00:22, 945.78it/s] 7231it [00:22, 1023.89it/s]7361it [00:22, 1092.27it/s]7491it [00:22, 1140.67it/s]7621it [00:22, 1179.47it/s]7742it [00:22, 1188.04it/s]7900it [00:22, 1273.61it/s]8031it [00:22, 1261.34it/s]8181it [00:22, 1314.23it/s]8314it [00:23, 1288.35it/s]8471it [00:23, 1361.31it/s]8621it [00:23, 1383.07it/s]8760it [00:23, 1363.88it/s]8897it [00:23, 1357.02it/s]9033it [00:23, 1329.85it/s]9167it [00:23, 1318.98it/s]9300it [00:23, 1157.98it/s]9421it [00:23, 1169.58it/s]9581it [00:24, 1250.19it/s]9708it [00:24, 1255.59it/s]9861it [00:24, 1319.63it/s]9995it [00:24, 1282.67it/s]10125it [00:24, 1237.91it/s]10291it [00:24, 1349.74it/s]10428it [00:24, 1304.49it/s]10560it [00:24, 1297.81it/s]10691it [00:24, 1253.10it/s]10817it [00:25, 1225.91it/s]10941it [00:25, 1220.16it/s]11081it [00:25, 1259.96it/s]11221it [00:25, 1276.88it/s]11371it [00:25, 1313.89it/s]11503it [00:25, 1278.66it/s]11632it [00:25, 1277.31it/s]11760it [00:25, 1261.08it/s]11887it [00:25, 1257.39it/s]12013it [00:25, 1239.10it/s]12137it [00:26, 1137.62it/s]12281it [00:26, 1210.60it/s]12404it [00:26, 1209.57it/s]12561it [00:26, 1308.45it/s]12700it [00:26, 1303.13it/s]12861it [00:26, 1379.84it/s]13000it [00:26, 1373.64it/s]13151it [00:26, 1367.98it/s]13289it [00:26, 1355.95it/s]13425it [00:27, 1329.97it/s]13559it [00:27, 1313.68it/s]13691it [00:27, 1283.88it/s]13820it [00:27, 1269.55it/s]13951it [00:27, 1253.76it/s]14091it [00:27, 1283.00it/s]14220it [00:27, 1261.42it/s]14347it [00:27, 1224.06it/s]14470it [00:27, 1207.46it/s]14601it [00:28, 1225.96it/s]14761it [00:28, 1332.50it/s]14901it [00:28, 1320.38it/s]15041it [00:28, 1338.77it/s]15200it [00:28, 1403.28it/s]15341it [00:28, 1293.67it/s]15473it [00:28, 1288.48it/s]15604it [00:28, 1258.19it/s]15751it [00:28, 1313.85it/s]15884it [00:28, 1261.73it/s]16012it [00:29, 1188.17it/s]16181it [00:29, 1281.17it/s]16331it [00:29, 1316.03it/s]16500it [00:29, 1407.84it/s]16642it [00:29, 1387.88it/s]16782it [00:29, 1313.40it/s]16915it [00:29, 1274.90it/s]17044it [00:29, 1224.96it/s]17200it [00:29, 1298.50it/s]17351it [00:30, 1352.18it/s]17488it [00:30, 1356.08it/s]17625it [00:30, 1282.32it/s]17755it [00:30, 1284.64it/s]17891it [00:30, 1299.34it/s]18041it [00:30, 1347.40it/s]18177it [00:30, 1324.27it/s]18321it [00:30, 1342.78it/s]18471it [00:30, 1371.82it/s]18611it [00:31, 1378.06it/s]18749it [00:31, 1322.92it/s]18882it [00:31, 1272.52it/s]19051it [00:31, 1366.94it/s]19189it [00:31, 1258.60it/s]19317it [00:31, 1248.92it/s]19444it [00:31, 1193.22it/s]19581it [00:31, 1239.90it/s]19707it [00:31, 1237.77it/s]19871it [00:32, 1349.99it/s]20011it [00:32, 1360.86it/s]20148it [00:32, 1252.84it/s]20276it [00:32, 1238.48it/s]20411it [00:32, 1224.11it/s]20551it [00:32, 1271.37it/s]20680it [00:32, 1253.61it/s]20807it [00:32, 1205.83it/s]20929it [00:32, 1204.16it/s]21081it [00:33, 1268.40it/s]21209it [00:33, 1251.39it/s]21351it [00:33, 1290.34it/s]21501it [00:33, 1335.12it/s]21641it [00:33, 1337.44it/s]21801it [00:33, 1408.44it/s]21943it [00:33, 1407.49it/s]22091it [00:33, 1428.31it/s]22235it [00:33, 1330.50it/s]22371it [00:33, 1328.72it/s]22511it [00:34, 1342.61it/s]22647it [00:34, 1315.90it/s]22781it [00:34, 1321.90it/s]22914it [00:34, 1280.12it/s]23043it [00:34, 1212.34it/s]23171it [00:34, 1230.13it/s]23301it [00:34, 1221.21it/s]23431it [00:34, 1217.53it/s]23600it [00:34, 1340.22it/s]23741it [00:35, 1330.75it/s]23875it [00:35, 1331.85it/s]24009it [00:35, 1306.22it/s]24141it [00:35, 1300.63it/s]24291it [00:35, 1355.55it/s]24431it [00:35, 1361.03it/s]24581it [00:35, 1384.02it/s]24720it [00:35, 1341.23it/s]24855it [00:35, 1276.69it/s]24991it [00:35, 1277.10it/s]25120it [00:36, 1240.04it/s]25245it [00:36, 1212.88it/s]25401it [00:36, 1268.32it/s]25551it [00:36, 1325.72it/s]25701it [00:36, 1372.18it/s]25871it [00:36, 1447.77it/s]26017it [00:36, 1357.55it/s]26154it [00:36, 1333.91it/s]26291it [00:36, 1334.63it/s]26451it [00:37, 1403.35it/s]26611it [00:37, 1442.18it/s]26756it [00:37, 1396.82it/s]26900it [00:37, 1383.99it/s]27039it [00:37, 1340.89it/s]27181it [00:37, 1362.56it/s]27318it [00:37, 1309.89it/s]27451it [00:37, 1312.50it/s]27591it [00:37, 1330.17it/s]27725it [00:38, 1330.09it/s]27861it [00:38, 1310.55it/s]27993it [00:38, 1310.09it/s]28141it [00:38, 1330.26it/s]28281it [00:38, 1329.72it/s]28415it [00:38, 1265.12it/s]28571it [00:38, 1345.04it/s]28721it [00:38, 1378.09it/s]28871it [00:38, 1407.04it/s]29013it [00:38, 1392.32it/s]29171it [00:39, 1431.82it/s]29331it [00:39, 1463.64it/s]29500it [00:39, 1523.94it/s]29661it [00:39, 1527.47it/s]29814it [00:39, 1461.08it/s]29961it [00:39, 1461.12it/s]30111it [00:39, 1458.39it/s]30261it [00:39, 1460.88it/s]30408it [00:39, 1459.74it/s]30561it [00:39, 1463.70it/s]30708it [00:40, 1373.15it/s]30871it [00:40, 1438.73it/s]31021it [00:40, 1437.86it/s]31191it [00:40, 1505.99it/s]31343it [00:40, 1384.12it/s]31484it [00:40, 1341.63it/s]31621it [00:40, 1344.12it/s]31781it [00:40, 1376.80it/s]31920it [00:40, 1337.13it/s]32055it [00:41, 1338.65it/s]32211it [00:41, 1392.71it/s]32351it [00:41, 1101.52it/s]32491it [00:41, 1167.44it/s]32616it [00:41, 1164.51it/s]32739it [00:41, 979.84it/s] 32881it [00:41, 1063.68it/s]33001it [00:41, 1088.82it/s]33141it [00:42, 1153.18it/s]33281it [00:42, 1195.18it/s]33404it [00:42, 1186.97it/s]33561it [00:42, 1288.00it/s]33700it [00:42, 1313.36it/s]33851it [00:42, 1331.46it/s]33986it [00:42, 1258.05it/s]34131it [00:42, 1288.99it/s]34301it [00:42, 1394.28it/s]34442it [00:43, 1328.76it/s]34611it [00:43, 1408.04it/s]34791it [00:43, 1500.87it/s]34943it [00:43, 1406.09it/s]35086it [00:43, 1327.35it/s]35221it [00:43, 1297.67it/s]35371it [00:43, 1348.74it/s]35508it [00:43, 1323.67it/s]35642it [00:43, 1317.17it/s]35781it [00:44, 1335.64it/s]35916it [00:44, 1339.28it/s]36071it [00:44, 1389.07it/s]36211it [00:44, 1312.66it/s]36361it [00:44, 1361.06it/s]36500it [00:44, 1352.70it/s]36636it [00:44, 1348.73it/s]36791it [00:44, 1390.89it/s]36931it [00:44, 1286.68it/s]37081it [00:45, 1337.62it/s]37217it [00:45, 1330.17it/s]37352it [00:45, 1284.39it/s]37511it [00:45, 1362.53it/s]37671it [00:45, 1418.29it/s]37814it [00:45, 1408.61it/s]37956it [00:45, 1397.46it/s]38097it [00:45, 1330.61it/s]38231it [00:45, 1310.72it/s]38371it [00:45, 1335.10it/s]38506it [00:46, 1264.85it/s]38651it [00:46, 1301.89it/s]38801it [00:46, 1356.75it/s]38961it [00:46, 1420.09it/s]39111it [00:46, 1416.14it/s]39261it [00:46, 1439.80it/s]39406it [00:46, 1400.86it/s]39547it [00:46, 1364.58it/s]39684it [00:46, 1365.54it/s]39831it [00:47, 1372.87it/s]39991it [00:47, 1437.06it/s]40136it [00:47, 1277.35it/s]40300it [00:47, 1349.22it/s]40461it [00:47, 1370.38it/s]40600it [00:47, 1241.30it/s]40741it [00:47, 1246.63it/s]40881it [00:47, 1285.40it/s]41012it [00:47, 1283.50it/s]41151it [00:48, 1290.95it/s]41282it [00:48, 1253.36it/s]41421it [00:48, 1288.76it/s]41561it [00:48, 1290.14it/s]41691it [00:48, 1289.79it/s]41821it [00:48, 1223.82it/s]41951it [00:48, 1236.96it/s]42100it [00:48, 867.61it/s] 42204it [00:49, 890.93it/s]42306it [00:49, 869.34it/s]42402it [00:49, 713.67it/s]42551it [00:49, 876.82it/s]42652it [00:49, 819.64it/s]42791it [00:49, 949.17it/s]42900it [00:49, 861.07it/s]42995it [00:50, 881.78it/s]43121it [00:50, 977.06it/s]43291it [00:50, 1156.95it/s]43413it [00:50, 1010.05it/s]43571it [00:50, 1142.92it/s]43693it [00:50, 1159.66it/s]43815it [00:50, 1012.64it/s]43961it [00:50, 1117.23it/s]44100it [00:50, 1106.95it/s]44216it [00:51, 1087.45it/s]44371it [00:51, 1205.51it/s]44496it [00:51, 1076.46it/s]44609it [00:51, 999.91it/s] 44721it [00:51, 1029.12it/s]44871it [00:51, 1147.08it/s]44990it [00:51, 1006.97it/s]45100it [00:51, 1025.19it/s]45207it [00:52, 978.07it/s] 45341it [00:52, 1071.82it/s]45481it [00:52, 1139.27it/s]45598it [00:52, 1004.73it/s]45703it [00:52, 933.56it/s] 45800it [00:52, 870.49it/s]45900it [00:52, 848.14it/s]46011it [00:52, 905.50it/s]46141it [00:53, 996.85it/s]46271it [00:53, 1059.13it/s]46380it [00:53, 1061.72it/s]46488it [00:53, 1053.44it/s]46600it [00:53, 1019.89it/s]46703it [00:53, 983.23it/s] 46811it [00:53, 1007.04it/s]46921it [00:53, 1019.30it/s]47031it [00:53, 1032.49it/s]47171it [00:53, 1127.61it/s]47285it [00:54, 1094.29it/s]47400it [00:54, 1094.27it/s]47510it [00:54, 1038.42it/s]47651it [00:54, 1126.73it/s]47771it [00:54, 1120.18it/s]47884it [00:54, 1067.76it/s]47992it [00:54, 1046.04it/s]48100it [00:54, 937.77it/s] 48200it [00:55, 941.71it/s]48301it [00:55, 939.15it/s]48401it [00:55, 947.06it/s]48521it [00:55, 995.49it/s]48622it [00:55, 836.31it/s]48711it [00:55, 841.12it/s]48831it [00:55, 928.13it/s]48928it [00:55, 877.88it/s]49019it [00:55, 820.98it/s]49131it [00:56, 892.39it/s]49251it [00:56, 945.15it/s]49381it [00:56, 1035.20it/s]49487it [00:56, 1015.55it/s]49590it [00:56, 980.33it/s] 49690it [00:56, 977.89it/s]49789it [00:56, 953.64it/s]49891it [00:56, 954.98it/s]50000it [00:56, 908.40it/s]50100it [00:57, 834.72it/s]50251it [00:57, 994.71it/s]50354it [00:57, 917.91it/s]50449it [00:57, 840.25it/s]50591it [00:57, 980.28it/s]50721it [00:57, 1046.70it/s]50900it [00:57, 1234.31it/s]51028it [00:57, 1245.72it/s]51156it [00:58, 1194.38it/s]51278it [00:58, 1198.50it/s]51400it [00:58, 1200.29it/s]51571it [00:58, 1324.16it/s]51705it [00:58, 1201.81it/s]51871it [00:58, 1289.54it/s]52021it [00:58, 1340.18it/s]52161it [00:58, 1356.90it/s]52300it [00:58, 1334.64it/s]52435it [00:58, 1256.84it/s]52563it [00:59, 1245.72it/s]52691it [00:59, 1213.44it/s]52841it [00:59, 1269.82it/s]52991it [00:59, 1322.46it/s]53131it [00:59, 1334.45it/s]53265it [00:59, 1311.65it/s]53401it [00:59, 1320.35it/s]53561it [00:59, 1396.14it/s]53701it [00:59, 1335.23it/s]53836it [01:00, 1294.35it/s]53981it [01:00, 1327.79it/s]54121it [01:00, 1327.22it/s]54271it [01:00, 1373.37it/s]54409it [01:00, 1329.90it/s]54543it [01:00, 1323.15it/s]54676it [01:00, 1281.03it/s]54805it [01:00, 1153.40it/s]54951it [01:00, 1233.36it/s]55077it [01:01, 1232.04it/s]55202it [01:01, 1091.60it/s]55315it [01:01, 940.49it/s] 55441it [01:01, 1013.17it/s]55548it [01:01, 843.29it/s] 55641it [01:01, 822.99it/s]55751it [01:01, 886.50it/s]55871it [01:01, 941.13it/s]56001it [01:02, 1029.25it/s]56121it [01:02, 1073.90it/s]56271it [01:02, 1186.59it/s]56400it [01:02, 1060.83it/s]56511it [01:02, 1069.59it/s]56641it [01:02, 1126.71it/s]56771it [01:02, 1166.93it/s]56900it [01:02, 1082.58it/s]57031it [01:02, 1132.61it/s]57147it [01:03, 1107.67it/s]57260it [01:03, 992.73it/s] 57363it [01:03, 895.71it/s]57501it [01:03, 1015.63it/s]57661it [01:03, 1162.17it/s]57811it [01:03, 1231.67it/s]57941it [01:03, 1248.79it/s]58101it [01:03, 1325.95it/s]58251it [01:03, 1359.37it/s]58400it [01:04, 1395.29it/s]58551it [01:04, 1410.43it/s]58701it [01:04, 1372.97it/s]58841it [01:04, 1378.33it/s]58991it [01:04, 1389.97it/s]59131it [01:04, 1191.48it/s]59256it [01:04, 988.69it/s] 59364it [01:05, 896.99it/s]59461it [01:05, 805.59it/s]59591it [01:05, 901.66it/s]59688it [01:05, 906.95it/s]59784it [01:05, 910.40it/s]59881it [01:05, 916.32it/s]60001it [01:05, 986.42it/s]60111it [01:05, 1001.91it/s]60221it [01:05, 1028.24it/s]60326it [01:06, 944.62it/s] 60423it [01:06, 657.75it/s]60502it [01:06, 646.25it/s]60600it [01:06, 674.98it/s]60731it [01:06, 820.26it/s]60823it [01:06, 773.86it/s]60907it [01:06, 751.09it/s]61011it [01:07, 813.84it/s]61151it [01:07, 958.04it/s]61252it [01:07, 945.07it/s]61400it [01:07, 1086.70it/s]61521it [01:07, 1114.39it/s]61661it [01:07, 1155.58it/s]61801it [01:07, 1216.22it/s]61941it [01:07, 1265.32it/s]62071it [01:07, 1264.06it/s]62199it [01:08, 1069.23it/s]62312it [01:08, 1083.62it/s]62451it [01:08, 1159.13it/s]62581it [01:08, 1168.73it/s]62721it [01:08, 1227.83it/s]62846it [01:08, 1223.74it/s]62970it [01:08, 1211.58it/s]63093it [01:08, 1205.39it/s]63215it [01:08, 1182.12it/s]63341it [01:08, 1199.06it/s]63462it [01:09, 1199.30it/s]63601it [01:09, 1251.79it/s]63727it [01:09, 1148.00it/s]63861it [01:09, 1196.29it/s]63983it [01:09, 1197.21it/s]64104it [01:09, 1182.35it/s]64231it [01:09, 1185.39it/s]64391it [01:09, 1293.16it/s]64521it [01:09, 1247.65it/s]64661it [01:10, 1273.49it/s]64800it [01:10, 1292.80it/s]64941it [01:10, 1320.00it/s]65074it [01:10, 1316.46it/s]65211it [01:10, 1328.83it/s]65381it [01:10, 1394.93it/s]65521it [01:10, 1142.04it/s]65651it [01:10, 1168.51it/s]65800it [01:10, 1165.32it/s]65921it [01:11, 1124.45it/s]66081it [01:11, 1226.26it/s]66231it [01:11, 1298.61it/s]66364it [01:11, 1300.43it/s]66521it [01:11, 1368.42it/s]66681it [01:11, 1422.22it/s]66825it [01:11, 1338.59it/s]66961it [01:11, 1313.72it/s]67094it [01:11, 1286.59it/s]67231it [01:12, 1301.20it/s]67400it [01:12, 1391.37it/s]67540it [01:12, 1247.89it/s]67681it [01:12, 1278.51it/s]67812it [01:12, 1286.43it/s]67991it [01:12, 1418.10it/s]68141it [01:12, 1436.42it/s]68301it [01:12, 1480.52it/s]68451it [01:12, 1466.12it/s]68600it [01:13, 1440.51it/s]68745it [01:13, 1344.38it/s]68891it [01:13, 1358.71it/s]69028it [01:13, 1278.41it/s]69158it [01:13, 1270.80it/s]69321it [01:13, 1344.98it/s]69471it [01:13, 1364.75it/s]69609it [01:13, 1340.11it/s]69751it [01:13, 1361.32it/s]69901it [01:13, 1378.10it/s]70040it [01:14, 1356.66it/s]70176it [01:14, 1346.04it/s]70311it [01:14, 1339.49it/s]70481it [01:14, 1424.82it/s]70624it [01:14, 1365.39it/s]70761it [01:14, 1285.99it/s]70891it [01:14, 1234.29it/s]71031it [01:14, 1267.90it/s]71161it [01:14, 1274.39it/s]71290it [01:15, 1179.62it/s]71410it [01:15, 1133.25it/s]71551it [01:15, 1172.04it/s]71691it [01:15, 1224.29it/s]71821it [01:15, 1191.37it/s]71981it [01:15, 1268.21it/s]72109it [01:15, 1248.82it/s]72271it [01:15, 1333.48it/s]72421it [01:15, 1371.97it/s]72559it [01:16, 1342.27it/s]72694it [01:16, 1331.22it/s]72828it [01:16, 1296.09it/s]72958it [01:16, 1231.54it/s]73091it [01:16, 1249.06it/s]73231it [01:16, 1270.81it/s]73359it [01:16, 1272.07it/s]73487it [01:16, 1269.55it/s]73621it [01:16, 1227.19it/s]73781it [01:17, 1311.34it/s]73941it [01:17, 1378.73it/s]74080it [01:17, 1294.08it/s]74221it [01:17, 1318.15it/s]74361it [01:17, 1311.48it/s]74500it [01:17, 1274.74it/s]74631it [01:17, 1278.74it/s]74800it [01:17, 1264.33it/s]74931it [01:17, 1261.37it/s]75100it [01:18, 1351.61it/s]75251it [01:18, 1392.05it/s]75401it [01:18, 1420.91it/s]75561it [01:18, 1468.84it/s]75711it [01:18, 1461.57it/s]75861it [01:18, 1467.43it/s]76011it [01:18, 1469.71it/s]76159it [01:18, 1451.71it/s]76305it [01:18, 1249.54it/s]76441it [01:19, 1272.48it/s]76591it [01:19, 1323.78it/s]76727it [01:19, 1332.18it/s]76863it [01:19, 1251.21it/s]77001it [01:19, 1269.71it/s]77130it [01:19, 1162.72it/s]77271it [01:19, 1198.36it/s]77400it [01:19, 1207.74it/s]77523it [01:19, 1194.34it/s]77644it [01:20, 1152.85it/s]77761it [01:20, 1112.36it/s]77901it [01:20, 1176.23it/s]78081it [01:20, 1350.11it/s]78221it [01:20, 1352.44it/s]78358it [01:20, 1349.93it/s]78494it [01:20, 1346.20it/s]78630it [01:20, 1229.19it/s]78761it [01:20, 1248.14it/s]78900it [01:20, 1285.70it/s]79031it [01:21, 1247.53it/s]79181it [01:21, 1318.12it/s]79321it [01:21, 1332.58it/s]79481it [01:21, 1405.35it/s]79631it [01:21, 1423.38it/s]79774it [01:21, 1421.77it/s]79917it [01:21, 1302.89it/s]80000it [01:21, 978.12it/s] 
+  Writing test split...
+0it [00:00, ?it/s]101it [00:00, 993.44it/s]201it [00:00, 918.71it/s]351it [00:00, 1147.80it/s]481it [00:00, 1177.18it/s]621it [00:00, 1233.95it/s]781it [00:00, 1333.74it/s]915it [00:00, 968.62it/s] 1081it [00:00, 1125.23it/s]1207it [00:01, 1131.09it/s]1351it [00:01, 1209.25it/s]1501it [00:01, 1274.71it/s]1641it [00:01, 1299.28it/s]1776it [00:01, 1267.36it/s]1911it [00:01, 1271.22it/s]2051it [00:01, 1297.13it/s]2200it [00:01, 1351.37it/s]2337it [00:01, 1299.33it/s]2469it [00:02, 1280.04it/s]2598it [00:02, 1238.22it/s]2723it [00:02, 1219.20it/s]2871it [00:02, 1248.02it/s]2997it [00:02, 1249.92it/s]3123it [00:02, 1231.90it/s]3247it [00:02, 1218.86it/s]3381it [00:02, 1246.39it/s]3511it [00:02, 1252.70it/s]3661it [00:02, 1310.66it/s]3801it [00:03, 1321.09it/s]3934it [00:03, 1317.60it/s]4071it [00:03, 1323.58it/s]4204it [00:03, 1219.79it/s]4361it [00:03, 1317.26it/s]4500it [00:03, 1324.11it/s]4634it [00:03, 1209.43it/s]4800it [00:03, 1321.68it/s]4935it [00:04, 1135.68it/s]5000it [00:04, 1209.97it/s]
+  Created validation/ → testing/ symlink
+✅ 80000 train | 5000 test spectrograms saved
+
+[Step 10] Downloading negative datasets...
+  Downloading dinner_party.zip...
+  Downloading dinner_party_background.zip...
+  Downloading dinner_party_eval.zip...
+  Downloading no_speech.zip...
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+  Downloading no_speech_background.zip...
+  Downloading speech.zip...
+  Downloading speech_background.zip...
+✅ Negative datasets ready
+
+[Step 11] Writing training config...
+✅ Config written (batch_size=128, GPU=yes)
+
+[Step 12] Training (~3 hour(s))...
+[Step 12] GPU detected — verifying CUDA + cuDNN...
+GPU: NVIDIA GeForce RTX 4090, 580.126.16, 24564 MiB
+LD_LIBRARY_PATH = /usr/local/lib/cudnn-9.3/nvidia/cudnn/lib:/usr/local/lib/cudnn-9.3/nvidia/cudnn/lib:/usr/local/nvidia/lib:/usr/local/nvidia/lib64
+  cuDNN libs in /usr/local/lib/cudnn-9.3/nvidia/cudnn/lib: ['libcudnn.so.9', 'libcudnn_adv.so.9', 'libcudnn_cnn.so.9', 'libcudnn_engines_precompiled.so.9', 'libcudnn_engines_runtime_compiled.so.9']
+  cuDNN libs in /usr/local/lib/cudnn-9.3/nvidia/cudnn/lib: ['libcudnn.so.9', 'libcudnn_adv.so.9', 'libcudnn_cnn.so.9', 'libcudnn_engines_precompiled.so.9', 'libcudnn_engines_runtime_compiled.so.9']
+cuDNN runtime version: 9.20.0
+TF version: 2.21.0
+GPUs visible: [PhysicalDevice(name='/physical_device:GPU:0', device_type='GPU')]
+GPU matmul OK: [ 7. 10. 15. 22.]
+GPU conv2d OK: output shape (1, 8, 8, 16)
+
+  (stderr also logged to /workspace/training/training_stderr.log)
+Traceback (most recent call last):
+  File "<frozen runpy>", line 198, in _run_module_as_main
+  File "<frozen runpy>", line 88, in _run_code
+  File "/workspace/training/microWakeWord/microwakeword/model_train_eval.py", line 35, in <module>
+    import microwakeword.train as train
+  File "/workspace/training/microWakeWord/microwakeword/train.py", line 468, in <module>
+    _trapz_fn = getattr(np, 'trapezoid', np.trapz)
+                                         ^^^^^^^^
+  File "/usr/local/lib/python3.11/dist-packages/numpy/__init__.py", line 792, in __getattr__
+    raise AttributeError(f"module {__name__!r} has no attribute {attr!r}")
+AttributeError: module 'numpy' has no attribute 'trapz'. Did you mean: 'trace'?
+
+❌ Training failed — model file not found.
+   Common causes:
+   1. cuDNN version mismatch (check errors above)
+   2. Out of GPU memory (reduce batch_size in config)
+   3. Corrupt training data
+
+--- Last 4000 chars of training stderr ---
+Traceback (most recent call last):
+  File "<frozen runpy>", line 198, in _run_module_as_main
+  File "<frozen runpy>", line 88, in _run_code
+  File "/workspace/training/microWakeWord/microwakeword/model_train_eval.py", line 35, in <module>
+    import microwakeword.train as train
+  File "/workspace/training/microWakeWord/microwakeword/train.py", line 468, in <module>
+    _trapz_fn = getattr(np, 'trapezoid', np.trapz)
+                                         ^^^^^^^^
+  File "/usr/local/lib/python3.11/dist-packages/numpy/__init__.py", line 792, in __getattr__
+    raise AttributeError(f"module {__name__!r} has no attribute {attr!r}")
+AttributeError: module 'numpy' has no attribute 'trapz'. Did you mean: 'trace'?
+
+
+   Process exited with code 1
