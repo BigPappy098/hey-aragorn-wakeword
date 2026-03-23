@@ -361,7 +361,7 @@ subprocess.run([sys.executable, '-m', 'pip', 'install', '-q', '-e', 'microWakeWo
                check=True)
 # Explicit installs matching the working Colab notebook
 subprocess.run([sys.executable, '-m', 'pip', 'install', '-q',
-                'tensorboard', 'datasets', 'onnxruntime', 'tqdm'],
+                'tensorboard', 'datasets<3', 'onnxruntime', 'tqdm'],
                check=True)
 
 # Patch: fix validate_nonstreaming for Keras 3 / TF 2.18 compatibility.
@@ -589,53 +589,14 @@ except ImportError:
     import audiomentations
     importlib.reload(audiomentations)
 
-# ── Ensure torchcodec works (required by datasets 3.x for audio decoding) ────
-# torchcodec links against FFmpeg shared libraries at runtime.  The `ffmpeg`
-# CLI package alone is NOT enough — we need the dev packages (libavcodec-dev,
-# etc.) so the .so files are present.  If torchcodec still won't load after
-# installing those libs, we fall back to datasets<3 which uses soundfile.
-_torchcodec_ok = False
-try:
-    import torchcodec  # noqa: F401
-    _torchcodec_ok = True
-    print("[dep] torchcodec OK")
-except Exception as _tc_err:
-    print(f"[dep] torchcodec not available: {_tc_err}")
-
-if not _torchcodec_ok:
-    # Install FFmpeg shared libraries that torchcodec links against
-    print("[dep] Installing FFmpeg dev libraries for torchcodec...")
-    _ffmpeg_dev = ['libavcodec-dev', 'libavformat-dev', 'libavutil-dev',
-                   'libswresample-dev', 'libavfilter-dev', 'libswscale-dev']
-    _apt_cmd = ['apt-get', 'install', '-y', '-q'] + _ffmpeg_dev
-    if os.getuid() != 0:
-        _apt_cmd = ['sudo'] + _apt_cmd
-    try:
-        subprocess.run(_apt_cmd, check=True, capture_output=True)
-        print("[dep] FFmpeg dev libraries installed")
-    except Exception:
-        print("[dep] WARNING: Could not install FFmpeg dev libraries")
-
-    # Install or reinstall torchcodec
-    print("[dep] Installing torchcodec...")
-    subprocess.run([sys.executable, '-m', 'pip', 'install', '-q', 'torchcodec'],
-                   capture_output=True)
-
-    # Verify in a subprocess (fresh import, picks up new .so files)
-    _tc_check = subprocess.run(
-        [sys.executable, '-c', 'import torchcodec; print("ok")'],
-        capture_output=True, text=True)
-    if _tc_check.returncode == 0:
-        _torchcodec_ok = True
-        print("[dep] torchcodec installed and working")
-    else:
-        print(f"[dep] torchcodec still broken: {_tc_check.stderr.strip()}")
-        # Last resort: downgrade datasets to v2.x which uses soundfile
-        print("[dep] Falling back to datasets<3 (uses soundfile, no torchcodec)...")
-        subprocess.run([sys.executable, '-m', 'pip', 'install', '-q', 'datasets<3'],
-                       check=True)
-        os.environ['HF_AUDIO_DECODER'] = 'soundfile'
-        print("[dep] Installed datasets<3 as fallback")
+# ── Ensure datasets uses soundfile for audio decoding ────────────────────────
+# datasets 3.x requires torchcodec for audio, but torchcodec needs a matching
+# PyTorch ABI + FFmpeg version — it won't work on most RunPod images.
+# datasets <3 uses soundfile/librosa which works everywhere and is fine for WAVs.
+subprocess.run([sys.executable, '-m', 'pip', 'install', '-q', 'datasets<3'],
+               check=True)
+os.environ['HF_AUDIO_DECODER'] = 'soundfile'
+print("[dep] datasets<3 + soundfile (audio decoder)")
 
 # ── Ensure system packages are installed (ffmpeg, espeak-ng) ─────────────────
 _sys_pkgs = []
