@@ -582,27 +582,53 @@ except ImportError:
     import audiomentations
     importlib.reload(audiomentations)
 
-# torchcodec is NOT needed for microWakeWord training, but if it's installed
-# and broken (missing FFmpeg, PyTorch version mismatch) the HuggingFace
-# `datasets` library will crash when it tries to use torchcodec as its audio
-# decoder during spectrogram generation (Step 9).  We must fully uninstall it
-# so `datasets` falls back to soundfile/librosa.
+# ── Ensure torchcodec works (required by datasets 3.x for audio decoding) ────
+# torchcodec links against FFmpeg shared libraries at runtime.  The `ffmpeg`
+# CLI package alone is NOT enough — we need the dev packages (libavcodec-dev,
+# etc.) so the .so files are present.  If torchcodec still won't load after
+# installing those libs, we fall back to datasets<3 which uses soundfile.
 _torchcodec_ok = False
 try:
     import torchcodec  # noqa: F401
     _torchcodec_ok = True
-except Exception:
-    pass
+    print("[dep] torchcodec OK")
+except Exception as _tc_err:
+    print(f"[dep] torchcodec not available: {_tc_err}")
 
 if not _torchcodec_ok:
-    # Uninstall the broken package so datasets doesn't try to use it
-    print("[dep] torchcodec is broken or missing — uninstalling to prevent "
-          "datasets crashes (soundfile will be used instead)...")
-    subprocess.run([sys.executable, '-m', 'pip', 'uninstall', '-y', 'torchcodec'],
+    # Install FFmpeg shared libraries that torchcodec links against
+    print("[dep] Installing FFmpeg dev libraries for torchcodec...")
+    _ffmpeg_dev = ['libavcodec-dev', 'libavformat-dev', 'libavutil-dev',
+                   'libswresample-dev', 'libavfilter-dev', 'libswscale-dev']
+    _apt_cmd = ['apt-get', 'install', '-y', '-q'] + _ffmpeg_dev
+    if os.getuid() != 0:
+        _apt_cmd = ['sudo'] + _apt_cmd
+    try:
+        subprocess.run(_apt_cmd, check=True, capture_output=True)
+        print("[dep] FFmpeg dev libraries installed")
+    except Exception:
+        print("[dep] WARNING: Could not install FFmpeg dev libraries")
+
+    # Install or reinstall torchcodec
+    print("[dep] Installing torchcodec...")
+    subprocess.run([sys.executable, '-m', 'pip', 'install', '-q', 'torchcodec'],
                    capture_output=True)
 
-# Also tell datasets to prefer soundfile decoder (newer datasets versions)
-os.environ.setdefault('HF_AUDIO_DECODER', 'soundfile')
+    # Verify in a subprocess (fresh import, picks up new .so files)
+    _tc_check = subprocess.run(
+        [sys.executable, '-c', 'import torchcodec; print("ok")'],
+        capture_output=True, text=True)
+    if _tc_check.returncode == 0:
+        _torchcodec_ok = True
+        print("[dep] torchcodec installed and working")
+    else:
+        print(f"[dep] torchcodec still broken: {_tc_check.stderr.strip()}")
+        # Last resort: downgrade datasets to v2.x which uses soundfile
+        print("[dep] Falling back to datasets<3 (uses soundfile, no torchcodec)...")
+        subprocess.run([sys.executable, '-m', 'pip', 'install', '-q', 'datasets<3'],
+                       check=True)
+        os.environ['HF_AUDIO_DECODER'] = 'soundfile'
+        print("[dep] Installed datasets<3 as fallback")
 
 # ── Ensure system packages are installed (ffmpeg, espeak-ng) ─────────────────
 _sys_pkgs = []

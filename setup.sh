@@ -38,19 +38,25 @@ else
     echo "  source $WORK_DIR/venv/bin/activate"
 fi
 
-# System packages needed for audio processing and piper TTS
-echo "Installing system packages (ffmpeg, espeak-ng)..."
-apt-get install -y -q ffmpeg espeak-ng libespeak-ng-dev 2>/dev/null || \
+# System packages needed for audio processing, piper TTS, and torchcodec.
+# torchcodec links against FFmpeg shared libraries at runtime, so we need the
+# dev packages (libavcodec-dev, etc.), not just the ffmpeg CLI.
+echo "Installing system packages (ffmpeg + dev libs, espeak-ng)..."
+apt-get install -y -q ffmpeg \
+    libavcodec-dev libavformat-dev libavutil-dev \
+    libswresample-dev libavfilter-dev libswscale-dev \
+    espeak-ng libespeak-ng-dev 2>/dev/null || \
     echo "WARNING: Could not install system packages"
 
 # Pre-install slow packages so train.py doesn't have to
 echo "Installing additional dependencies..."
 pip install -q soundfile librosa "audiomentations>=0.35.0" webrtcvad
 
-# Remove torchcodec if present — it often breaks on RunPod (missing FFmpeg
-# shared libs or PyTorch version mismatch) and causes the HuggingFace datasets
-# library to crash at audio decoding.  soundfile is used as fallback.
-pip uninstall -y torchcodec 2>/dev/null || true
+# torchcodec — required by HuggingFace datasets 3.x for audio decoding.
+# The FFmpeg dev libraries installed above provide the shared libs it needs.
+echo "Installing torchcodec (audio decoder for datasets 3.x)..."
+pip install -q torchcodec 2>/dev/null || \
+    echo "WARNING: Could not install torchcodec (train.py will handle fallback)"
 
 # PyTorch: only needed for piper-tts (sample generation, not training).
 # On GPU machines, DON'T install CPU-only PyTorch — it can clobber the

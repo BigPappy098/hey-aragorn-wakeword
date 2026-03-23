@@ -10,7 +10,10 @@ echo ""
 # ── System packages ──────────────────────────────────────────────────────────
 echo "[1/4] Installing system packages..."
 sudo apt-get update -qq
-sudo apt-get install -y -qq python3 python3-pip python3-venv git wget unzip ffmpeg
+sudo apt-get install -y -qq python3 python3-pip python3-venv git wget unzip \
+    ffmpeg libavcodec-dev libavformat-dev libavutil-dev \
+    libswresample-dev libavfilter-dev libswscale-dev \
+    espeak-ng libespeak-ng-dev
 
 # ── Working directory ────────────────────────────────────────────────────────
 if [ -n "$1" ]; then
