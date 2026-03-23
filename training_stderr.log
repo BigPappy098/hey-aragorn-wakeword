@@ -1,0 +1,11 @@
+Traceback (most recent call last):
+  File "<frozen runpy>", line 198, in _run_module_as_main
+  File "<frozen runpy>", line 88, in _run_code
+  File "/workspace/training/microWakeWord/microwakeword/model_train_eval.py", line 35, in <module>
+    import microwakeword.train as train
+  File "/workspace/training/microWakeWord/microwakeword/train.py", line 468, in <module>
+    _trapz_fn = getattr(np, 'trapezoid', np.trapz)
+                                         ^^^^^^^^
+  File "/usr/local/lib/python3.11/dist-packages/numpy/__init__.py", line 792, in __getattr__
+    raise AttributeError(f"module {__name__!r} has no attribute {attr!r}")
+AttributeError: module 'numpy' has no attribute 'trapz'. Did you mean: 'trace'?
