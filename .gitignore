@@ -1,7 +1,6 @@
 .env
 __pycache__/
 venv/
-*.log
 
 # Large training artifacts (generated at runtime)
 generated_samples/
