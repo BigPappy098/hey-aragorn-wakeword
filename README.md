@@ -120,7 +120,7 @@ cd /workspace/training
 bash setup.sh
 ```
 
-This creates a Python virtual environment at `/workspace/training/venv/` and installs TensorFlow, PyTorch, piper-tts, and all dependencies into it. Takes **10-15 minutes** (TensorFlow and PyTorch are large downloads). Output is mostly silent — it's not stuck, just downloading.
+This creates a Python virtual environment at `/workspace/training/venv/` that inherits packages already in the container image (like TensorFlow) and installs additional dependencies. Takes **3-5 minutes**.
 
 Because the venv lives on the **volume** (not the container disk), it survives pod stop/restart — you won't need to re-run setup unless you delete the volume.
 

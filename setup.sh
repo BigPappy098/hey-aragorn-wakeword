@@ -27,8 +27,10 @@ apt-get install -y -q ffmpeg espeak-ng libespeak-ng-dev 2>/dev/null || \
     echo "WARNING: Could not install system packages (apt-get failed). ffmpeg and espeak-ng must be available."
 
 # ── Python venv (persistent on the volume) ───────────────────────────────────
-# Always create the venv inside WORK_DIR so it lives on the RunPod volume,
-# not the container disk. This means packages survive pod stop/restart.
+# --system-site-packages lets the venv inherit packages already in the container
+# image (e.g. TensorFlow in tensorflow/tensorflow:latest-gpu), so pip skips them
+# instead of re-downloading ~600MB. Additional packages we install go into the
+# venv on the volume and survive pod stop/restart.
 VENV_DIR="$WORK_DIR/venv"
 
 if [ -d "$VENV_DIR" ] && [ -f "$VENV_DIR/bin/activate" ]; then
@@ -36,7 +38,7 @@ if [ -d "$VENV_DIR" ] && [ -f "$VENV_DIR/bin/activate" ]; then
     source "$VENV_DIR/bin/activate"
 else
     echo "Creating Python venv at $VENV_DIR ..."
-    python3 -m venv "$VENV_DIR"
+    python3 -m venv --system-site-packages "$VENV_DIR"
     source "$VENV_DIR/bin/activate"
     pip install --upgrade pip -q
 fi
