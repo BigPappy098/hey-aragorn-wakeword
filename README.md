@@ -14,8 +14,7 @@ If you just want to get going fast, here's the short version. Detailed instructi
 
 ```bash
 # On RunPod (after creating pod — see setup below):
-apt-get update && apt-get install -y tmux git
-tmux new-session -s training
+apt-get update && apt-get install -y git wget curl unzip
 git clone https://github.com/YOURUSERNAME/YOURREPO.git /workspace/training
 cd /workspace/training
 bash setup.sh
@@ -72,7 +71,9 @@ On the pod configuration screen:
 | **Volume Disk** | **150 GB** (needed for augmentation datasets) |
 | **Volume Mount Path** | `/workspace` |
 
-> **Important:** The volume must be at least **100 GB**. The background noise datasets (WHAM, CHiME, FMA, AudioSet) need ~30 GB to download and ~12 GB converted. The negative datasets need another ~3 GB. Generated samples and training artifacts need ~5-10 GB.
+> **Important — Volume Size:** The volume must be at least **100 GB**. The background noise datasets (WHAM, CHiME, FMA, AudioSet) need ~30 GB to download and ~12 GB converted. The negative datasets need another ~3 GB. Generated samples and training artifacts need ~5-10 GB.
+
+> **Important — Volume vs Container Disk:** The **container disk** gets wiped every time you stop the pod. The **volume disk** (`/workspace`) persists across stops. Everything in this guide is cloned and run inside `/workspace/` so your datasets, models, and repo survive pod restarts. **Do not** clone or work outside of `/workspace/` or you'll lose everything when the pod stops.
 
 4. Click **Environment Variables** and add:
 
@@ -98,19 +99,11 @@ ssh root@<pod-ip> -p <port>
 
 **If using Web Terminal:** Just click the button — it opens a terminal in your browser.
 
-### Step 5: Install Basics & Start tmux
+### Step 5: Install System Packages
 
 ```bash
-apt-get update && apt-get install -y tmux git wget curl unzip
+apt-get update && apt-get install -y git wget curl unzip
 ```
-
-Start a tmux session so training survives if your connection drops:
-
-```bash
-tmux new-session -s training
-```
-
-> **tmux basics:** Detach with `Ctrl+B` then `D`. Reattach with `tmux attach -t training`.
 
 ### Step 6: Clone Your Repo
 
@@ -140,11 +133,11 @@ The script is fully interactive — it will ask you for:
 
 Then it runs automatically. See [Training Walkthrough](#training-walkthrough) below for details.
 
-### Step 9: Keep the Pod Alive (Optional)
+### Step 9: When You're Done
 
-If you need to disconnect and come back later, the pod stays running as long as it's not stopped. To keep a stopped pod's data, use `sleep infinity` in the terminal or just detach from tmux (`Ctrl+B` then `D`).
+Training keeps running even if you close the browser tab — RunPod's web terminal stays alive in the background. Your data is on the volume (`/workspace/`), so it persists even if the pod is stopped and restarted.
 
-To stop the pod when done (to stop billing): Go to RunPod dashboard → click **Stop** on your pod.
+To stop billing when training is complete: Go to RunPod dashboard → click **Stop** on your pod.
 
 ---
 
