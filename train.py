@@ -1316,8 +1316,8 @@ except Exception as e:
         'model': f'{TARGET_WORD}.tflite',
         'trained_languages': ['en'],
         'micro': {
-            'probability_cutoff': 0.97,
-            'sliding_window_size': 5,
+            'probability_cutoff': 0.5,
+            'sliding_window_size': 10,
             'feature_step_size': 10,
             'tensor_arena_size': 22860,
             'minimum_esphome_version': '2024.7.0'
