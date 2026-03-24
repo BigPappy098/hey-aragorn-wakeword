@@ -195,17 +195,32 @@ def git_push(branch='main'):
     print("  [git] Remote has new commits — merging...")
     merge = subprocess.run(
         ['git', 'merge', f'origin/{branch}', '-X', 'ours',
+         '--allow-unrelated-histories',
          '-m', 'Merge remote changes (keep local trained files)'],
         cwd=REPO_ROOT, capture_output=True, text=True
     )
     if merge.returncode != 0:
-        # Shouldn't happen with -X ours, but handle it
-        subprocess.run(['git', 'merge', '--abort'],
+        # -X ours doesn't auto-resolve delete/modify conflicts (e.g. remote
+        # deleted a model file that we just re-created).  Force-keep ours.
+        print("  [git] Resolving delete/modify conflicts (keeping our files)...")
+        # Stage all our versions of conflicted files
+        subprocess.run(['git', 'checkout', '--ours', '.'],
                        cwd=REPO_ROOT, capture_output=True)
-        print("  ❌ Merge failed — see stderr below")
-        if merge.stderr:
-            print(f"     {merge.stderr.strip()}")
-        sys.exit(1)
+        subprocess.run(['git', 'add', '-A'],
+                       cwd=REPO_ROOT, capture_output=True)
+        commit = subprocess.run(
+            ['git', 'commit', '--no-edit'],
+            cwd=REPO_ROOT, capture_output=True, text=True
+        )
+        if commit.returncode != 0:
+            # Last resort: abort and report
+            subprocess.run(['git', 'merge', '--abort'],
+                           cwd=REPO_ROOT, capture_output=True)
+            print("  ❌ Merge failed — see stderr below")
+            if merge.stderr:
+                print(f"     {merge.stderr.strip()}")
+            sys.exit(1)
+        print("  [git] Conflicts resolved")
 
     # Retry push after merge
     result = subprocess.run(
