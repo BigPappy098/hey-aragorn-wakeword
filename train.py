@@ -601,10 +601,23 @@ else:
             check=True)
 print("✅ Repos ready")
 
-# piper-sample-generator is run via subprocess with PYTHONPATH pointing at
-# the cloned repo dir.  We do NOT pip-install it because its pyproject.toml
-# pins numpy>=2 and audiomentations==0.33 which conflict with TF's numpy 1.x.
+# piper-sample-generator is run via subprocess with its repo dir on sys.path.
+# We do NOT pip-install it because its pyproject.toml pins numpy>=2 and
+# audiomentations==0.33 which conflict with TF's numpy 1.x.
 PSG_DIR = os.path.abspath('piper-sample-generator')
+
+# Add to PYTHONPATH permanently so all subprocesses can find the module.
+_existing_pp = os.environ.get('PYTHONPATH', '')
+os.environ['PYTHONPATH'] = PSG_DIR + (':' + _existing_pp if _existing_pp else '')
+
+# Verify the module is actually findable
+_main_py = os.path.join(PSG_DIR, 'piper_sample_generator', '__main__.py')
+if not os.path.isfile(_main_py):
+    print(f"ERROR: Cannot find {_main_py}")
+    print(f"  PSG_DIR = {PSG_DIR}")
+    print(f"  Contents: {os.listdir(PSG_DIR) if os.path.isdir(PSG_DIR) else 'DIR NOT FOUND'}")
+    sys.exit(1)
+print(f"  piper-sample-generator: {PSG_DIR}")
 
 # ── Ensure PyTorch + piper-tts are available (needed by piper-sample-generator)
 def _detect_cuda_version():
@@ -778,16 +791,13 @@ elif LOW_RESOURCE:
     print(f"  ⚠ Low-resource machine detected ({TOTAL_RAM_GB:.1f} GB RAM).")
     print(f"    Training will be skipped unless you pass --force-train.")
 
-piper_env = {
-    **os.environ,
-    'PYTHONPATH': PSG_DIR,
-    **({'ATEN_CPU_CAPABILITY': 'default'} if not HAS_AVX2 else {}),
-}
+if not HAS_AVX2:
+    os.environ['ATEN_CPU_CAPABILITY'] = 'default'
 subprocess.run([
     sys.executable, '-m', 'piper_sample_generator',
     TARGET_WORD, '--max-samples', '1', '--batch-size', '1',
     '--model', model_path, '--output-dir', preview_dir
-], text=True, env=piper_env, check=True)
+], text=True, check=True)
 
 preview_files = [f for f in os.listdir(preview_dir) if f.endswith('.wav')]
 if preview_files:
@@ -825,7 +835,7 @@ subprocess.run([
     sys.executable, '-m', 'piper_sample_generator',
     TARGET_WORD, '--max-samples', str(SYNTHETIC_COUNT), '--batch-size', str(PIPER_BATCH_SIZE),
     '--model', model_path, '--output-dir', 'generated_samples'
-], text=True, env=piper_env, check=True)
+], text=True, check=True)
 synth_count = len([f for f in os.listdir('generated_samples') if f.endswith('.wav')])
 print(f"✅ {synth_count} synthetic samples generated")
 
