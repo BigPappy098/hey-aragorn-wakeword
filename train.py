@@ -584,10 +584,12 @@ if os.path.exists(_test_py_path):
             f.write(_test_src)
         print("[patch] Fixed np.trapz → np.trapezoid in test.py")
 
+_need_psg_install = False
 if not os.path.exists('piper-sample-generator'):
     subprocess.run(
         ['git', 'clone', 'https://github.com/TaterTotterson/piper-sample-generator.git'],
         check=True)
+    _need_psg_install = True
 else:
     # Ensure we have TaterTotterson's fork, not rhasspy's
     _remote = subprocess.run(
@@ -599,6 +601,17 @@ else:
         subprocess.run(
             ['git', 'clone', 'https://github.com/TaterTotterson/piper-sample-generator.git'],
             check=True)
+        _need_psg_install = True
+
+# Editable install so `python -m piper_sample_generator` works (matches TaterTotterson's setup)
+try:
+    import piper_sample_generator  # noqa: F401
+except ImportError:
+    _need_psg_install = True
+if _need_psg_install:
+    print("[dep] Installing piper-sample-generator...")
+    subprocess.run([sys.executable, '-m', 'pip', 'install', '-q', '-e', 'piper-sample-generator'],
+                   check=True)
 print("✅ Repos ready")
 
 # ── Ensure PyTorch + piper-tts are available (needed by piper-sample-generator)
@@ -775,7 +788,6 @@ elif LOW_RESOURCE:
 
 piper_env = {
     **os.environ,
-    'PYTHONPATH': os.path.abspath('piper-sample-generator'),
     **({'ATEN_CPU_CAPABILITY': 'default'} if not HAS_AVX2 else {}),
 }
 subprocess.run([
