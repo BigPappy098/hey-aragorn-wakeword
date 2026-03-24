@@ -1,37 +1,36 @@
 # microWakeWord Custom Trainer
 
-Train a custom wake word model for [ESPHome](https://esphome.io) and [Home Assistant](https://www.home-assistant.io/) using [microWakeWord](https://github.com/kahrendt/microWakeWord). No ML experience required.
+Train a custom wake word model for [ESPHome](https://esphome.io) and [Home Assistant](https://www.home-assistant.io/) using [microWakeWord](https://github.com/TaterTotterson/micro-wake-word). No ML experience required.
 
-You provide a phonetic wake word (like `hey_air_uh_gorn`), and this project generates thousands of synthetic voice samples, augments them with background noise and room acoustics, trains a tiny (~100 KB) TFLite model, and pushes it to your GitHub repo — ready to drop into an ESPHome config.
+You provide a phonetic wake word (like `hey_air_uh_gorn`), and this project generates thousands of synthetic voice samples, augments them with real-world background noise and room acoustics, trains a tiny (~100 KB) TFLite model, and pushes it to your GitHub repo — ready to drop into an ESPHome config.
+
+Based on [TaterTotterson's microWakeWord-Trainer](https://github.com/TaterTotterson/microWakeWord-Trainer-Nvidia-Docker) (minus the web app — this is terminal-only).
 
 ---
 
-## Choose Your Setup
+## Quick Start (RunPod)
 
-| | RunPod (cloud GPU) | Local / VPS with GPU | Local / VPS (CPU-only) |
-|---|---|---|---|
-| **Speed** | ~2 hrs for 20k steps | ~2 hrs (depends on GPU) | Very slow (hours–days) |
-| **Cost** | ~$1–2 per run | Free (your hardware) | Free |
-| **Best for** | No GPU at home | You have a dedicated GPU | Testing / iterating on config |
-| **Setup** | `bash setup.sh` | `bash setup_local.sh` | `bash setup_local.sh` |
+If you just want to get going fast, here's the short version. Detailed instructions below.
 
-> **Testing on a low-spec machine?** The script auto-detects available RAM and GPU. On machines with < 12 GB RAM and no GPU, training is skipped by default to prevent freezing. Use `--dry-run` to validate the full pipeline without training, or `--force-train` to attempt training anyway.
-
-Any NVIDIA GPU will speed up training compared to CPU-only. Larger GPUs (20+ GB VRAM like RTX 3090/4090) can use the default batch size of 128. Smaller GPUs (8–12 GB) will work too — TensorFlow automatically adjusts, or you can reduce `batch_size` in the generated `training_parameters.yaml` if you hit out-of-memory errors. CPU-only mode automatically reduces batch size to 32 to avoid out-of-memory crashes.
+```bash
+# On RunPod (after creating pod — see setup below):
+apt-get update && apt-get install -y tmux git
+tmux new-session -s training
+git clone https://github.com/YOURUSERNAME/YOURREPO.git /workspace/training
+cd /workspace/training
+bash setup.sh
+python -u train.py 2>&1 | tee training.log
+```
 
 ---
 
 ## Prerequisites
 
-You need two things before starting, regardless of which setup you choose.
-
-### 1. Fork or clone this repo
+### 1. Fork this repo
 
 Go to this repo on GitHub and click **Fork** (top right). This gives you your own copy where trained models will be pushed.
 
 ### 2. Create a GitHub Personal Access Token (PAT)
-
-The training script pushes your finished model back to your GitHub repo. It needs a token to do that.
 
 1. Go to **GitHub → Settings → Developer settings → Personal access tokens → Fine-grained tokens**
    (direct link: https://github.com/settings/personal-access-tokens/new)
@@ -42,62 +41,110 @@ The training script pushes your finished model back to your GitHub repo. It need
 
 ---
 
-## Setup Option A: RunPod (Cloud GPU)
+## Setup Option A: RunPod (Cloud GPU) — Recommended
 
-### 1. Create a RunPod pod
+### Step 1: Create a RunPod Account
 
-- Go to [runpod.io](https://runpod.io) and create an account
-- Deploy a new GPU pod with these settings:
+Go to [runpod.io](https://runpod.io) and create an account. Add a payment method (training costs ~$1-3).
+
+### Step 2: Deploy a GPU Pod
+
+1. Click **GPU Cloud** → **Deploy**
+2. Select a GPU:
+
+| GPU | VRAM | Cost | Training Time (~20k steps) |
+|---|---|---|---|
+| **RTX 4090** | 24 GB | ~$0.40/hr | ~2 hours |
+| RTX 3090 | 24 GB | ~$0.30/hr | ~2-3 hours |
+| RTX A5000 | 24 GB | ~$0.30/hr | ~2-3 hours |
+| Any NVIDIA GPU | 8+ GB | Varies | Works, just slower |
+
+3. Click **Deploy On Demand** (or Spot for cheaper, but it can be interrupted)
+
+### Step 3: Configure the Pod
+
+On the pod configuration screen:
 
 | Setting | Value |
 |---|---|
-| Template | `tensorflow/tensorflow:latest-gpu` (or a specific version like `2.21.0-gpu`) |
-| GPU | RTX 4090 (recommended) or any NVIDIA GPU |
-| Volume | 150 GB network volume mounted at `/workspace` |
+| **Container Image** | `tensorflow/tensorflow:latest-gpu` |
+| **Container Disk** | 20 GB (minimum) |
+| **Volume Disk** | **150 GB** (needed for augmentation datasets) |
+| **Volume Mount Path** | `/workspace` |
 
-- Under **Environment Variables** (Edit Pod → Environment Variables), add:
+> **Important:** The volume must be at least **100 GB**. The background noise datasets (WHAM, CHiME, FMA, AudioSet) need ~30 GB to download and ~12 GB converted. The negative datasets need another ~3 GB. Generated samples and training artifacts need ~5-10 GB.
 
-| Key | Value |
+4. Click **Environment Variables** and add:
+
+| Variable | Value |
 |---|---|
 | `GITHUB_TOKEN` | Your PAT from above (`ghp_...` or `github_pat_...`) |
-| `GITHUB_REPO` | `yourusername/your-repo-name` |
+| `GITHUB_REPO` | `yourusername/your-repo-name` (e.g. `BigPappy098/hey-aragorn-wakeword`) |
 
-### 2. SSH into the pod and install basics
+5. Click **Deploy**
 
+### Step 4: Connect to the Pod
+
+Once the pod shows **Running**:
+
+1. Click **Connect**
+2. Choose **SSH** or **Web Terminal**
+
+**If using SSH:**
 ```bash
 ssh root@<pod-ip> -p <port>
 ```
+(RunPod shows the SSH command on the Connect page)
 
-The RunPod TensorFlow template is minimal — update it and install the tools you'll need:
+**If using Web Terminal:** Just click the button — it opens a terminal in your browser.
+
+### Step 5: Install Basics & Start tmux
 
 ```bash
-apt-get update && apt-get upgrade -y
-apt-get install -y tmux git
+apt-get update && apt-get install -y tmux git wget curl unzip
 ```
 
-### 3. Start a tmux session
+Start a tmux session so training survives if your connection drops:
 
 ```bash
 tmux new-session -s training
 ```
 
-tmux keeps your training running if your SSH connection drops. To detach later: press `Ctrl+B` then `D`. To reattach: `tmux attach -t training`.
+> **tmux basics:** Detach with `Ctrl+B` then `D`. Reattach with `tmux attach -t training`.
 
-### 4. Clone your repo and run setup
+### Step 6: Clone Your Repo
 
 ```bash
 git clone https://github.com/YOURUSERNAME/YOURREPO.git /workspace/training
 cd /workspace/training
+```
+
+### Step 7: Run Setup
+
+```bash
 bash setup.sh
 ```
 
-### 5. Start training
+This installs TensorFlow, PyTorch, piper-tts, and all dependencies. Takes ~5 minutes.
+
+### Step 8: Start Training
 
 ```bash
 python -u train.py 2>&1 | tee training.log
 ```
 
-Jump to [Training Walkthrough](#training-walkthrough) below.
+The script is fully interactive — it will ask you for:
+1. Wake word (phonetic spelling)
+2. Number of samples (default: 10,000)
+3. Training steps (default: 20,000)
+
+Then it runs automatically. See [Training Walkthrough](#training-walkthrough) below for details.
+
+### Step 9: Keep the Pod Alive (Optional)
+
+If you need to disconnect and come back later, the pod stays running as long as it's not stopped. To keep a stopped pod's data, use `sleep infinity` in the terminal or just detach from tmux (`Ctrl+B` then `D`).
+
+To stop the pod when done (to stop billing): Go to RunPod dashboard → click **Stop** on your pod.
 
 ---
 
@@ -118,144 +165,131 @@ cd YOURREPO
 bash setup_local.sh
 ```
 
-This installs system packages, creates a Python virtual environment, installs TensorFlow and dependencies, and auto-detects your GPU. It will ask you where to put the training data — press Enter to use your current directory, or type a different path:
-
-```
-[2/4] Where should the training data go?
-  Press Enter for current directory: /home/you/hey-aragorn-wakeword
-  Or type a path:
-```
-
-You can also skip the prompt by passing a path as an argument: `bash setup_local.sh /path/to/workdir`
+This installs system packages, creates a Python virtual environment, and installs all dependencies. It will ask where to put training data — press Enter for the current directory.
 
 ### 3. Configure your `.env` file
 
-The setup script automatically creates a `.env` file from the template. Open it and fill in your GitHub credentials:
+The setup script creates a `.env` file from the template. Edit it:
 
 ```bash
 nano .env
 ```
 
-The file looks like this:
-
+Fill in:
 ```
-# Working directory for training data, models, and repos
 WORK_DIR=~/wakeword-training
-
-# GitHub repo (owner/name) for pushing trained models
 GITHUB_REPO=yourusername/your-repo-name
-
-# GitHub personal access token (with repo scope)
 GITHUB_TOKEN=github_pat_xxxxxxxxxxxx
 ```
 
-- `WORK_DIR` — already filled in by the setup script
-- `GITHUB_REPO` — your GitHub username and repo name, e.g. `BigPappy098/hey-aragorn-wakeword`
-- `GITHUB_TOKEN` — the PAT you created earlier
+> **Security:** The `.env` file is gitignored — your token stays local.
 
-> **Security:** The `.env` file is gitignored and will never be committed. Your token stays local.
-
-### 4. Activate the virtual environment and start training
+### 4. Activate the venv and train
 
 ```bash
 source ~/wakeword-training/venv/bin/activate
 python3 -u train.py 2>&1 | tee training.log
 ```
 
-> **Tip:** The `-u` flag ensures interactive prompts display correctly when piping through `tee`.
-
 ---
 
 ## Training Walkthrough
 
-Here's exactly what happens when you run `train.py`. The script is fully interactive — it walks you through everything.
+Here's what happens when you run `train.py`.
 
-### Step 1: Configure your wake word
-
-You'll be prompted for three things:
+### 1. Configure Your Wake Word
 
 ```
 Enter wake word phonetically (e.g. hey_air_uh_gorn): hey_air_uh_gorn
-Number of voice samples [default: 1000, better quality: 2000-5000]: 1000
+Number of voice samples [default: 10000, better quality: 20000-50000]: 10000
 Training steps [default: 20000, better quality: 20000-30000]: 20000
 ```
 
-**Tips for the phonetic spelling:**
+**Tips for phonetic spelling:**
 - Use underscores between syllables: `hey_air_uh_gorn`, not `heyaragorn`
-- Spell it how it sounds, not how it's written
+- Spell it how it **sounds**, not how it's written
 - Longer, more unique phrases reduce false activations
 - Examples: `hey_air_uh_gorn`, `ok_computer`, `hey_jar_vis`
 
-### Step 2: Pronunciation preview
+### 2. Pronunciation Preview
 
-The script generates one sample and pushes a `.wav` file to your GitHub repo so you can listen to it. It prints a download link:
+The script generates one sample, pushes a `.wav` to GitHub, and asks if it sounds right:
 
 ```
 Preview uploaded to: https://github.com/you/repo/blob/main/models/preview_hey_air_uh_gorn.wav
 Does the pronunciation sound correct? [y/n]:
 ```
 
-**Listen carefully.** This is your only chance to catch a bad pronunciation before generating hundreds of samples. If it sounds wrong, type `n` and re-run with a different phonetic spelling.
+**Listen carefully.** If it sounds wrong, type `n` and re-run with a different phonetic spelling.
 
-### Step 3: Real recordings (optional)
+### 3. Real Recordings (Optional but Recommended)
 
-If you have recordings of yourself (or others) saying the wake word, place them in the `real_recordings/` folder before running `train.py`. Supported formats: `.wav`, `.mp3`, `.m4a`, `.flac`.
+If you have recordings of people saying the wake word, place them in `real_recordings/` before running.
 
-The script will detect them and mix them 50/50 with synthetic samples. This can improve accuracy, but is completely optional — synthetic-only works fine.
+**Two ways to provide recordings:**
 
-**Recording tips:**
-- Record 10–50 repetitions per clip with a 1–2 second pause between each
-- Use your normal speaking voice and distance from mic
-- Phone or laptop mic is fine — the script handles noise and normalization
+| Method | How |
+|---|---|
+| **Long recording** | One file per person with 10-50 repetitions, 1-2 sec pauses. The script auto-splits them. |
+| **Individual clips** | Name them `speaker01_take01.wav`, `speaker01_take02.wav`, etc. Short clips (< 4 sec) are used as-is. |
 
-### Step 4: Automatic generation and augmentation
+**Tips:**
+- Multiple speakers improve model quality
+- Phone or laptop mic is fine
+- Supported formats: `.wav`, `.mp3`, `.m4a`, `.flac`
+- The script mixes 50/50 synthetic + real recordings
 
-From here, everything is automatic. The script will:
+### 4. Automatic Pipeline
 
-1. **Generate synthetic samples** using Piper TTS (~1000 WAV files)
-2. **Download room acoustics data** from OpenSLR (~1.3 GB, cached for future runs)
-3. **Augment samples** with background noise, reverb, pitch shifts, EQ, and distortion
-4. **Download negative datasets** from Hugging Face (~1.3 GB, cached for future runs)
-5. **Generate training config** (`training_parameters.yaml`)
+From here, everything is automatic:
 
-### Step 5: Training
+1. **Generate synthetic samples** using [Piper TTS](https://github.com/TaterTotterson/piper-sample-generator) (10,000+ WAV files)
+2. **Download augmentation datasets** (~30 GB total, cached for future runs):
+   - MIT Room Impulse Responses (reverb simulation)
+   - WHAM (urban environment noise)
+   - CHiME-Home (domestic environment recordings)
+   - FMA xsmall (music background)
+   - AudioSet balanced (diverse real-world sounds)
+3. **Convert all audio to 16k mono WAV** (archives deleted after to save space)
+4. **Generate spectrograms** with full augmentation (background noise, reverb, pitch shift, EQ, distortion)
+5. **Download negative datasets** from Hugging Face (~3 GB, pre-computed features)
+6. **Write training config** (`training_parameters.yaml`)
 
-The model trains automatically. Progress is logged every 500 steps with metrics like accuracy, recall, precision, and loss.
+> **First run takes longer** due to dataset downloads. Subsequent runs reuse cached datasets.
+
+### 5. Training
+
+Training runs automatically. Progress is logged every 500 steps.
+
+**Training parameters (matching TaterTotterson's working reference):**
+
+| Parameter | Value |
+|---|---|
+| Model architecture | MixedNet (64 pointwise filters, 4 blocks) |
+| Stride | 2 |
+| Batch size | 16 |
+| Learning rate | 0.001 |
+| Positive class weight | 1 |
+| Negative class weight | 20 |
+| Background noise SNR | 5-10 dB |
+
+**Estimated training times:**
+
+| GPU | 20k steps | 30k steps |
+|---|---|---|
+| RTX 4090 | ~2 hours | ~3 hours |
+| RTX 3090 | ~2-3 hours | ~4 hours |
+| 8-12 GB GPU | ~3-5 hours | ~5-8 hours |
+| CPU-only | Many hours | Not recommended |
 
 **CLI flags:**
 
 | Flag | Effect |
 |---|---|
-| `--dry-run` | Validate the full pipeline (sample generation, augmentation, config) but skip model training. Useful for testing on low-spec machines. |
-| `--force-train` | Override the automatic low-resource detection and attempt training even on machines with limited RAM / no GPU. |
+| `--dry-run` | Validate the pipeline without training |
+| `--force-train` | Override low-resource detection and attempt training anyway |
 
-**Estimated training times (20,000 steps):**
-
-| GPU | Time |
-|---|---|
-| RTX 4090 (24 GB) | ~2 hours |
-| RTX 3090 (24 GB) | ~2–3 hours |
-| Smaller GPU (8–12 GB) | ~3–5 hours (may need reduced batch size) |
-| CPU-only | Many hours (not recommended for full runs) |
-
-**Logs:** All output is saved to `training.log` in your repo directory (created by the `tee` command above). To monitor from a separate terminal:
-
-```bash
-tail -f training.log
-```
-
-**What good training looks like** (final validation):
-
-| Metric | Target |
-|---|---|
-| Accuracy | > 99% |
-| Recall | > 95% |
-| Precision | > 95% |
-| Loss | < 0.01 |
-
----
-
-## Output
+### 6. Output
 
 When training completes, two files are pushed to your GitHub repo:
 
@@ -265,8 +299,7 @@ models/
   hey_air_uh_gorn.json      <- ESPHome metadata
 ```
 
-The script prints the exact URL to use in ESPHome:
-
+The script prints the ESPHome URL:
 ```
 ESPHome URL: https://raw.githubusercontent.com/YOURUSERNAME/YOURREPO/main/models/hey_air_uh_gorn.json
 ```
@@ -285,7 +318,20 @@ micro_wake_word:
     - voice_assistant.start:
 ```
 
-Flash the device and you're done — it will now respond to your custom wake word.
+Flash the device and it will respond to your custom wake word.
+
+---
+
+## Retraining / Improving Your Model
+
+If the model doesn't detect well enough, try these in order:
+
+1. **Add real recordings** — Record yourself (and others) saying the wake word. Multiple speakers help a lot.
+2. **Increase samples** — Try 20,000-50,000 synthetic samples instead of 10,000.
+3. **Increase training steps** — Try 30,000-40,000 steps.
+4. **Adjust the phonetic spelling** — If TTS pronunciation is off, the model learns the wrong sound.
+
+To retrain, just re-run `python -u train.py 2>&1 | tee training.log` — the script cleans up previous artifacts automatically (but keeps downloaded datasets to save time).
 
 ---
 
@@ -293,47 +339,43 @@ Flash the device and you're done — it will now respond to your custom wake wor
 
 ### cuDNN version mismatch
 
-TensorFlow 2.18 requires cuDNN 9.3+. The script handles this automatically by installing the correct version to a side directory. If you still see cuDNN errors, try:
+TensorFlow 2.18+ requires cuDNN 9.3+. The script handles this automatically. If you still see errors:
 
 ```bash
 export LD_LIBRARY_PATH=$(python3 -c "import nvidia.cudnn, os; print(os.path.dirname(nvidia.cudnn.__file__))")/lib:$LD_LIBRARY_PATH
 ```
 
-### "No GPU detected" warning
-
-If you have a GPU but the script doesn't see it, make sure CUDA 12.x and your NVIDIA drivers are installed:
+### "No GPU detected"
 
 ```bash
 nvidia-smi          # should show your GPU
 python3 -c "import tensorflow as tf; print(tf.config.list_physical_devices('GPU'))"
 ```
 
-On RunPod this is handled by the Docker template. On a local machine you may need to install CUDA yourself.
+On RunPod this is handled by the container image. Locally you may need to install CUDA.
+
+### Out of disk space
+
+The augmentation datasets need ~30 GB to download and ~12 GB once converted. Make sure your RunPod volume is at least 100 GB. Archives are automatically deleted after extraction.
 
 ### Machine freezes during training
 
-On machines with < 12 GB RAM and no GPU, the training step can consume all available memory and freeze the system. The script detects this automatically and skips training. Use `--dry-run` to validate the pipeline, then run the actual training on a GPU machine.
+On machines with < 12 GB RAM and no GPU, training is skipped by default. Use `--force-train` to override (expect slow performance).
 
-If you want to force training on a low-spec machine: `python3 -u train.py --force-train`. The script will reduce batch size to 16 and limit TensorFlow threads, but expect very slow performance.
+### PyTorch CUDA mismatch warning
 
-### Out of memory (OOM) crash
-
-On CPU, batch size is automatically reduced to 32 (or 16 on low-resource machines). On GPU, the default is 128. If you still hit OOM, edit `training_parameters.yaml` after it's generated and reduce `batch_size` to 64 or 32, then re-run from Step 12 onward.
-
-### ZeroDivisionError at the end of training
-
-This is a known bug in the upstream microWakeWord evaluation code. **It does not affect your model.** Training completed successfully and your `.tflite` file is fine. The fix is already patched in `train.py`.
+The script auto-detects your CUDA version and installs the matching PyTorch build. If you see warnings about CUDA version mismatch, the script already handled it — it's just a pre-install leftover.
 
 ### Training seems stuck at step 0
 
-The first step takes longer than the rest because TensorFlow is compiling GPU kernels. Give it a few minutes.
+The first step takes longer because TensorFlow compiles GPU kernels. Give it a few minutes.
 
 ### Checking if the model was saved
 
 ```bash
-find ~/wakeword-training -name "*.tflite"
-# or on RunPod:
-find /workspace/training -name "*.tflite"
+find /workspace/training -name "*.tflite" 2>/dev/null
+# or locally:
+find . -name "*.tflite"
 ```
 
 ---
@@ -342,12 +384,12 @@ find /workspace/training -name "*.tflite"
 
 ```
 /
-├── train.py              <- Main training script (interactive, does everything)
-├── setup.sh              <- RunPod setup (bash — installs base deps)
-├── setup_local.sh        <- Local/VPS setup (bash — creates venv + installs deps)
+├── train.py              <- Main training script (interactive, fully automatic)
+├── setup.sh              <- RunPod setup script
+├── setup_local.sh        <- Local/VPS setup script (creates venv)
 ├── .env.example          <- Template for local env vars
-├── .gitignore            <- Keeps secrets, logs, and training artifacts out of git
-├── real_recordings/      <- Drop your own voice clips here (optional)
+├── .gitignore            <- Keeps secrets, logs, and artifacts out of git
+├── real_recordings/      <- Drop your voice clips here (optional)
 ├── models/               <- Trained models are saved and pushed here
 │   ├── *.tflite
 │   └── *.json
@@ -358,6 +400,8 @@ find /workspace/training -name "*.tflite"
 
 ## Credits
 
-- [microWakeWord](https://github.com/kahrendt/microWakeWord) by Kevin Ahrendt
-- [piper-sample-generator](https://github.com/rhasspy/piper-sample-generator) by rhasspy
+- [microWakeWord](https://github.com/TaterTotterson/micro-wake-word) (TaterTotterson's fork)
+- [piper-sample-generator](https://github.com/TaterTotterson/piper-sample-generator) (TaterTotterson's fork)
+- [microWakeWord-Trainer](https://github.com/TaterTotterson/microWakeWord-Trainer-Nvidia-Docker) by TaterTotterson (reference implementation)
+- [microWakeWord](https://github.com/kahrendt/microWakeWord) by Kevin Ahrendt (original)
 - [ESPHome micro_wake_word](https://esphome.io/components/micro_wake_word.html)

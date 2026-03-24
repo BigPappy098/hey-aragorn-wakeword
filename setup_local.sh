@@ -40,11 +40,11 @@ pip install --upgrade pip -q
 
 # ── Python packages ──────────────────────────────────────────────────────────
 echo "[4/4] Installing Python packages..."
-pip install -q "tensorflow>=2.18.0"
+pip install -q "tensorflow>=2.18.0" keras ai_edge_litert
 pip install -q numpy pyyaml mmap-ninja huggingface-hub soundfile librosa tensorboard
 pip install -q torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cpu
 pip install -q piper-tts
-pip install -q "audiomentations>=0.35.0" webrtcvad scipy tqdm onnxruntime
+pip install -q "audiomentations>=0.35.0" webrtcvad scipy scikit-learn tqdm onnxruntime
 
 # GPU info — cuDNN is handled automatically by train.py at runtime
 # (it side-installs cuDNN 9.3 to avoid conflicts with PyTorch's pinned version)
