@@ -18,6 +18,7 @@ apt-get update && apt-get install -y git wget curl unzip
 git clone https://github.com/YOURUSERNAME/YOURREPO.git /workspace/training
 cd /workspace/training
 bash setup.sh
+source venv/bin/activate
 python -u train.py 2>&1 | tee training.log
 ```
 
@@ -118,11 +119,14 @@ cd /workspace/training
 bash setup.sh
 ```
 
-This installs TensorFlow, PyTorch, piper-tts, and all dependencies. Takes ~5 minutes.
+This creates a Python virtual environment at `/workspace/training/venv/` and installs TensorFlow, PyTorch, piper-tts, and all dependencies into it. Takes ~5 minutes.
 
-### Step 8: Start Training
+Because the venv lives on the **volume** (not the container disk), it survives pod stop/restart — you won't need to re-run setup unless you delete the volume.
+
+### Step 8: Activate the Venv & Start Training
 
 ```bash
+source venv/bin/activate
 python -u train.py 2>&1 | tee training.log
 ```
 
@@ -133,17 +137,19 @@ The script is fully interactive — it will ask you for:
 
 Then it runs automatically. See [Training Walkthrough](#training-walkthrough) below for details.
 
-### Step 9: Keeping the Pod Running
+### Step 9: When You're Done
 
 Training keeps running even if you close the browser tab — RunPod's web terminal stays alive in the background.
 
-**Important:** Your repo and datasets live on the volume (`/workspace/`) and survive pod restarts. But `setup.sh` installs Python packages to the **container disk**, which gets wiped when the pod stops. To avoid re-running setup after a disconnect, run this in a separate terminal (or after training finishes):
+Everything (repo, venv, datasets, models) lives on the volume at `/workspace/`, so it all persists across pod restarts. To stop billing when training is complete: Go to RunPod dashboard → click **Stop** on your pod.
+
+If you restart the pod later, just re-activate the venv and you're ready to go:
 
 ```bash
-sleep infinity
+cd /workspace/training
+source venv/bin/activate
+python -u train.py 2>&1 | tee training.log
 ```
-
-This keeps the pod from going idle and stopping. When you're truly done and want to stop billing: Go to RunPod dashboard → click **Stop** on your pod. Next time you start it, you'll need to re-run `bash setup.sh` (takes ~5 min) but your datasets and repo will still be there.
 
 ---
 
