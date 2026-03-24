@@ -1,11 +1,235 @@
+INFO:absl:Loading and analyzing data sets.
+WARNING:absl:ring_buffer_size_in_time_dim overwritten by the passed-in value: 4
+WARNING:absl:ring_buffer_size_in_time_dim overwritten by the passed-in value: 10
+WARNING:absl:ring_buffer_size_in_time_dim overwritten by the passed-in value: 14
+WARNING:absl:ring_buffer_size_in_time_dim overwritten by the passed-in value: 22
+WARNING:absl:ring_buffer_size_in_time_dim overwritten by the passed-in value: 16
+INFO:absl:None
+INFO:absl:Step #500: rate 0.001000, accuracy 98.95%, recall 78.43%, precision 87.18%, cross entropy 0.033232
+INFO:absl:Step 500 (nonstreaming): Validation: recall at no faph = 67.228 with cutoff 0.95, accuracy = 88.07%, recall = 88.07%, precision = 100.00%, ambient false positives = 15, estimated false positives per hour = 1.03408, loss = 0.01866, auc = 0.99684, average viable recall = 0.872961516
+INFO:absl:Sharding callback duration: 37 microseconds
+INFO:absl:So far the best minimization quantity is 0.000 with best maximization quantity of 87.29615%; no faph cutoff is 0.95
+INFO:absl:Step #1000: rate 0.001000, accuracy 99.73%, recall 94.05%, precision 97.36%, cross entropy 0.008601
+INFO:absl:Step 1000 (nonstreaming): Validation: recall at no faph = 0.000 with cutoff 1.00, accuracy = 97.22%, recall = 97.22%, precision = 100.00%, ambient false positives = 239, estimated false positives per hour = 16.47626, loss = 0.00960, auc = 0.99690, average viable recall = 0.808222562
+INFO:absl:So far the best minimization quantity is 0.000 with best maximization quantity of 87.29615%; no faph cutoff is 0.95
+INFO:absl:Step #1500: rate 0.001000, accuracy 99.81%, recall 95.75%, precision 98.41%, cross entropy 0.006872
+INFO:absl:Step 1500 (nonstreaming): Validation: recall at no faph = 0.000 with cutoff 1.00, accuracy = 98.40%, recall = 98.40%, precision = 100.00%, ambient false positives = 239, estimated false positives per hour = 16.47626, loss = 0.00727, auc = 0.99782, average viable recall = 0.858660567
+INFO:absl:So far the best minimization quantity is 0.000 with best maximization quantity of 87.29615%; no faph cutoff is 0.95
+INFO:absl:Step #2000: rate 0.001000, accuracy 99.80%, recall 96.14%, precision 97.86%, cross entropy 0.006717
+INFO:absl:Step 2000 (nonstreaming): Validation: recall at no faph = 0.000 with cutoff 1.00, accuracy = 96.69%, recall = 96.69%, precision = 100.00%, ambient false positives = 108, estimated false positives per hour = 7.44534, loss = 0.00714, auc = 0.99973, average viable recall = 0.901818713
+INFO:absl:Sharding callback duration: 27 microseconds
+INFO:absl:So far the best minimization quantity is 0.000 with best maximization quantity of 90.18187%; no faph cutoff is 1.00
+INFO:absl:Step #2500: rate 0.001000, accuracy 99.82%, recall 96.03%, precision 98.00%, cross entropy 0.006085
+INFO:absl:Step 2500 (nonstreaming): Validation: recall at no faph = 0.000 with cutoff 1.00, accuracy = 97.98%, recall = 97.98%, precision = 100.00%, ambient false positives = 147, estimated false positives per hour = 10.13394, loss = 0.00653, auc = 0.99716, average viable recall = 0.903909319
+INFO:absl:Sharding callback duration: 35 microseconds
+INFO:absl:So far the best minimization quantity is 0.000 with best maximization quantity of 90.39093%; no faph cutoff is 1.00
+INFO:absl:Step #3000: rate 0.001000, accuracy 99.85%, recall 96.71%, precision 98.47%, cross entropy 0.005507
+INFO:absl:Step 3000 (nonstreaming): Validation: recall at no faph = 89.483 with cutoff 0.99, accuracy = 96.96%, recall = 96.96%, precision = 100.00%, ambient false positives = 47, estimated false positives per hour = 3.24010, loss = 0.00617, auc = 0.99828, average viable recall = 0.951118732
+INFO:absl:Sharding callback duration: 29 microseconds
+INFO:absl:So far the best minimization quantity is 0.000 with best maximization quantity of 95.11187%; no faph cutoff is 0.99
+INFO:absl:Step #3500: rate 0.001000, accuracy 99.87%, recall 97.51%, precision 98.74%, cross entropy 0.004598
+INFO:absl:Step 3500 (nonstreaming): Validation: recall at no faph = 85.978 with cutoff 0.99, accuracy = 96.39%, recall = 96.39%, precision = 100.00%, ambient false positives = 19, estimated false positives per hour = 1.30983, loss = 0.00664, auc = 0.99746, average viable recall = 0.952824600
+INFO:absl:Sharding callback duration: 30 microseconds
+INFO:absl:So far the best minimization quantity is 0.000 with best maximization quantity of 95.28246%; no faph cutoff is 0.99
+INFO:absl:Step #4000: rate 0.001000, accuracy 99.88%, recall 97.43%, precision 98.72%, cross entropy 0.004072
+INFO:absl:Step 4000 (nonstreaming): Validation: recall at no faph = 0.000 with cutoff 1.00, accuracy = 98.44%, recall = 98.44%, precision = 100.00%, ambient false positives = 176, estimated false positives per hour = 12.13315, loss = 0.00496, auc = 0.99991, average viable recall = 0.928555678
+INFO:absl:So far the best minimization quantity is 0.000 with best maximization quantity of 95.28246%; no faph cutoff is 0.99
+INFO:absl:Step #4500: rate 0.001000, accuracy 99.89%, recall 97.54%, precision 98.85%, cross entropy 0.004491
+INFO:absl:Step 4500 (nonstreaming): Validation: recall at no faph = 91.156 with cutoff 0.99, accuracy = 97.66%, recall = 97.66%, precision = 100.00%, ambient false positives = 42, estimated false positives per hour = 2.89541, loss = 0.00558, auc = 0.99754, average viable recall = 0.963715451
+INFO:absl:Sharding callback duration: 49 microseconds
+INFO:absl:So far the best minimization quantity is 0.000 with best maximization quantity of 96.37155%; no faph cutoff is 0.99
+INFO:absl:Step #5000: rate 0.001000, accuracy 99.88%, recall 97.79%, precision 98.64%, cross entropy 0.004139
+INFO:absl:Step 5000 (nonstreaming): Validation: recall at no faph = 0.000 with cutoff 1.00, accuracy = 97.78%, recall = 97.78%, precision = 100.00%, ambient false positives = 57, estimated false positives per hour = 3.92949, loss = 0.00541, auc = 0.99823, average viable recall = 0.944793646
+INFO:absl:So far the best minimization quantity is 0.000 with best maximization quantity of 96.37155%; no faph cutoff is 0.99
+INFO:absl:Step #5500: rate 0.001000, accuracy 99.86%, recall 97.21%, precision 98.35%, cross entropy 0.004844
+INFO:absl:Step 5500 (nonstreaming): Validation: recall at no faph = 91.276 with cutoff 0.98, accuracy = 97.04%, recall = 97.04%, precision = 100.00%, ambient false positives = 21, estimated false positives per hour = 1.44771, loss = 0.00564, auc = 0.99805, average viable recall = 0.965253157
+INFO:absl:Sharding callback duration: 33 microseconds
+INFO:absl:So far the best minimization quantity is 0.000 with best maximization quantity of 96.52532%; no faph cutoff is 0.98
+INFO:absl:Step #6000: rate 0.001000, accuracy 99.87%, recall 97.37%, precision 98.71%, cross entropy 0.005019
+INFO:absl:Step 6000 (nonstreaming): Validation: recall at no faph = 91.386 with cutoff 0.98, accuracy = 97.26%, recall = 97.26%, precision = 100.00%, ambient false positives = 57, estimated false positives per hour = 3.92949, loss = 0.00619, auc = 0.99818, average viable recall = 0.950471122
+INFO:absl:So far the best minimization quantity is 0.000 with best maximization quantity of 96.52532%; no faph cutoff is 0.98
+INFO:absl:Step #6500: rate 0.001000, accuracy 99.90%, recall 97.84%, precision 99.08%, cross entropy 0.003517
+INFO:absl:Step 6500 (nonstreaming): Validation: recall at no faph = 0.000 with cutoff 1.00, accuracy = 98.32%, recall = 98.32%, precision = 100.00%, ambient false positives = 32, estimated false positives per hour = 2.20603, loss = 0.00382, auc = 0.99896, average viable recall = 0.958790097
+INFO:absl:So far the best minimization quantity is 0.000 with best maximization quantity of 96.52532%; no faph cutoff is 0.98
+INFO:absl:Step #7000: rate 0.001000, accuracy 99.89%, recall 97.37%, precision 98.99%, cross entropy 0.003832
+INFO:absl:Step 7000 (nonstreaming): Validation: recall at no faph = 90.845 with cutoff 0.98, accuracy = 98.00%, recall = 98.00%, precision = 100.00%, ambient false positives = 53, estimated false positives per hour = 3.65373, loss = 0.00454, auc = 0.99894, average viable recall = 0.963042594
+INFO:absl:So far the best minimization quantity is 0.000 with best maximization quantity of 96.52532%; no faph cutoff is 0.98
+INFO:absl:Step #7500: rate 0.001000, accuracy 99.86%, recall 97.12%, precision 98.47%, cross entropy 0.004655
+INFO:absl:Step 7500 (nonstreaming): Validation: recall at no faph = 92.488 with cutoff 0.93, accuracy = 97.06%, recall = 97.06%, precision = 100.00%, ambient false positives = 15, estimated false positives per hour = 1.03408, loss = 0.00570, auc = 0.99804, average viable recall = 0.965113488
+INFO:absl:So far the best minimization quantity is 0.000 with best maximization quantity of 96.52532%; no faph cutoff is 0.98
+INFO:absl:Step #8000: rate 0.001000, accuracy 99.90%, recall 97.96%, precision 99.14%, cross entropy 0.003597
+INFO:absl:Step 8000 (nonstreaming): Validation: recall at no faph = 0.000 with cutoff 1.00, accuracy = 98.50%, recall = 98.50%, precision = 100.00%, ambient false positives = 91, estimated false positives per hour = 6.27339, loss = 0.00411, auc = 0.99895, average viable recall = 0.923600408
+INFO:absl:So far the best minimization quantity is 0.000 with best maximization quantity of 96.52532%; no faph cutoff is 0.98
+INFO:absl:Step #8500: rate 0.001000, accuracy 99.89%, recall 97.55%, precision 99.07%, cross entropy 0.003739
+INFO:absl:Step 8500 (nonstreaming): Validation: recall at no faph = 92.859 with cutoff 0.94, accuracy = 97.24%, recall = 97.24%, precision = 100.00%, ambient false positives = 17, estimated false positives per hour = 1.17195, loss = 0.00706, auc = 0.99722, average viable recall = 0.964827818
+INFO:absl:So far the best minimization quantity is 0.000 with best maximization quantity of 96.52532%; no faph cutoff is 0.98
+INFO:absl:Step #9000: rate 0.001000, accuracy 99.88%, recall 97.80%, precision 98.57%, cross entropy 0.003527
+INFO:absl:Step 9000 (nonstreaming): Validation: recall at no faph = 0.000 with cutoff 1.00, accuracy = 99.02%, recall = 99.02%, precision = 100.00%, ambient false positives = 125, estimated false positives per hour = 8.61729, loss = 0.00422, auc = 0.99903, average viable recall = 0.942839077
+INFO:absl:So far the best minimization quantity is 0.000 with best maximization quantity of 96.52532%; no faph cutoff is 0.98
+INFO:absl:Step #9500: rate 0.001000, accuracy 99.90%, recall 98.12%, precision 98.84%, cross entropy 0.003255
+INFO:absl:Step 9500 (nonstreaming): Validation: recall at no faph = 0.000 with cutoff 1.00, accuracy = 98.74%, recall = 98.74%, precision = 100.00%, ambient false positives = 43, estimated false positives per hour = 2.96435, loss = 0.00296, auc = 0.99898, average viable recall = 0.958460261
+INFO:absl:So far the best minimization quantity is 0.000 with best maximization quantity of 96.52532%; no faph cutoff is 0.98
+INFO:absl:Step #10000: rate 0.001000, accuracy 99.90%, recall 97.89%, precision 98.93%, cross entropy 0.002983
+INFO:absl:Step 10000 (nonstreaming): Validation: recall at no faph = 0.000 with cutoff 1.00, accuracy = 98.86%, recall = 98.86%, precision = 100.00%, ambient false positives = 99, estimated false positives per hour = 6.82490, loss = 0.00424, auc = 0.99895, average viable recall = 0.907492462
+INFO:absl:So far the best minimization quantity is 0.000 with best maximization quantity of 96.52532%; no faph cutoff is 0.98
+INFO:absl:Step #10500: rate 0.001000, accuracy 99.93%, recall 98.65%, precision 99.34%, cross entropy 0.002865
+INFO:absl:Step 10500 (nonstreaming): Validation: recall at no faph = 0.000 with cutoff 1.00, accuracy = 98.80%, recall = 98.80%, precision = 100.00%, ambient false positives = 89, estimated false positives per hour = 6.13551, loss = 0.00443, auc = 0.99795, average viable recall = 0.905663939
+INFO:absl:So far the best minimization quantity is 0.000 with best maximization quantity of 96.52532%; no faph cutoff is 0.98
+INFO:absl:Step #11000: rate 0.001000, accuracy 99.91%, recall 98.29%, precision 98.85%, cross entropy 0.003113
+INFO:absl:Step 11000 (nonstreaming): Validation: recall at no faph = 0.000 with cutoff 1.00, accuracy = 99.02%, recall = 99.02%, precision = 100.00%, ambient false positives = 214, estimated false positives per hour = 14.75280, loss = 0.00483, auc = 0.99913, average viable recall = 0.940041043
+INFO:absl:So far the best minimization quantity is 0.000 with best maximization quantity of 96.52532%; no faph cutoff is 0.98
+INFO:absl:Step #11500: rate 0.001000, accuracy 99.94%, recall 98.69%, precision 99.34%, cross entropy 0.002661
+INFO:absl:Step 11500 (nonstreaming): Validation: recall at no faph = 0.000 with cutoff 1.00, accuracy = 98.38%, recall = 98.38%, precision = 100.00%, ambient false positives = 65, estimated false positives per hour = 4.48099, loss = 0.00529, auc = 0.99796, average viable recall = 0.869527346
+INFO:absl:So far the best minimization quantity is 0.000 with best maximization quantity of 96.52532%; no faph cutoff is 0.98
+INFO:absl:Step #12000: rate 0.001000, accuracy 99.90%, recall 97.82%, precision 98.99%, cross entropy 0.003583
+INFO:absl:Step 12000 (nonstreaming): Validation: recall at no faph = 96.755 with cutoff 0.98, accuracy = 98.42%, recall = 98.42%, precision = 100.00%, ambient false positives = 68, estimated false positives per hour = 4.68781, loss = 0.00518, auc = 0.99723, average viable recall = 0.978985117
+INFO:absl:Sharding callback duration: 28 microseconds
+INFO:absl:So far the best minimization quantity is 0.000 with best maximization quantity of 97.89851%; no faph cutoff is 0.98
+INFO:absl:Step #12500: rate 0.001000, accuracy 99.90%, recall 97.91%, precision 98.94%, cross entropy 0.003382
+INFO:absl:Step 12500 (nonstreaming): Validation: recall at no faph = 0.000 with cutoff 1.00, accuracy = 97.94%, recall = 97.94%, precision = 100.00%, ambient false positives = 30, estimated false positives per hour = 2.06815, loss = 0.00542, auc = 0.99881, average viable recall = 0.956214447
+INFO:absl:So far the best minimization quantity is 0.000 with best maximization quantity of 97.89851%; no faph cutoff is 0.98
+INFO:absl:Step #13000: rate 0.001000, accuracy 99.91%, recall 98.29%, precision 99.00%, cross entropy 0.002845
+INFO:absl:Step 13000 (nonstreaming): Validation: recall at no faph = 0.000 with cutoff 1.00, accuracy = 98.80%, recall = 98.80%, precision = 100.00%, ambient false positives = 114, estimated false positives per hour = 7.85897, loss = 0.00411, auc = 0.99894, average viable recall = 0.940198033
+INFO:absl:So far the best minimization quantity is 0.000 with best maximization quantity of 97.89851%; no faph cutoff is 0.98
+INFO:absl:Step #13500: rate 0.001000, accuracy 99.94%, recall 98.59%, precision 99.46%, cross entropy 0.002700
+INFO:absl:Step 13500 (nonstreaming): Validation: recall at no faph = 0.000 with cutoff 1.00, accuracy = 98.90%, recall = 98.90%, precision = 100.00%, ambient false positives = 119, estimated false positives per hour = 8.20366, loss = 0.00411, auc = 0.99845, average viable recall = 0.877029373
+INFO:absl:So far the best minimization quantity is 0.000 with best maximization quantity of 97.89851%; no faph cutoff is 0.98
+INFO:absl:Step #14000: rate 0.001000, accuracy 99.92%, recall 98.31%, precision 99.08%, cross entropy 0.002646
+INFO:absl:Step 14000 (nonstreaming): Validation: recall at no faph = 0.000 with cutoff 1.00, accuracy = 99.16%, recall = 99.16%, precision = 100.00%, ambient false positives = 312, estimated false positives per hour = 21.50876, loss = 0.00661, auc = 0.99891, average viable recall = 0.856678311
+INFO:absl:So far the best minimization quantity is 0.000 with best maximization quantity of 97.89851%; no faph cutoff is 0.98
+INFO:absl:Step #14500: rate 0.001000, accuracy 99.92%, recall 98.35%, precision 99.26%, cross entropy 0.003041
+INFO:absl:Step 14500 (nonstreaming): Validation: recall at no faph = 93.810 with cutoff 0.92, accuracy = 96.61%, recall = 96.61%, precision = 100.00%, ambient false positives = 4, estimated false positives per hour = 0.27575, loss = 0.00712, auc = 0.99578, average viable recall = 0.976852807
+INFO:absl:So far the best minimization quantity is 0.000 with best maximization quantity of 97.89851%; no faph cutoff is 0.98
+INFO:absl:Step #15000: rate 0.001000, accuracy 99.92%, recall 98.50%, precision 99.20%, cross entropy 0.002643
+INFO:absl:Step 15000 (nonstreaming): Validation: recall at no faph = 0.000 with cutoff 1.00, accuracy = 99.28%, recall = 99.28%, precision = 100.00%, ambient false positives = 292, estimated false positives per hour = 20.13000, loss = 0.00609, auc = 0.99892, average viable recall = 0.724938156
+INFO:absl:So far the best minimization quantity is 0.000 with best maximization quantity of 97.89851%; no faph cutoff is 0.98
+INFO:absl:Step #15500: rate 0.001000, accuracy 99.90%, recall 97.74%, precision 98.95%, cross entropy 0.003236
+INFO:absl:Step 15500 (nonstreaming): Validation: recall at no faph = 0.000 with cutoff 1.00, accuracy = 99.06%, recall = 99.06%, precision = 100.00%, ambient false positives = 276, estimated false positives per hour = 19.02698, loss = 0.00626, auc = 0.99889, average viable recall = 0.840060117
+INFO:absl:So far the best minimization quantity is 0.000 with best maximization quantity of 97.89851%; no faph cutoff is 0.98
+INFO:absl:Step #16000: rate 0.001000, accuracy 99.93%, recall 98.48%, precision 99.39%, cross entropy 0.002060
+INFO:absl:Step 16000 (nonstreaming): Validation: recall at no faph = 0.000 with cutoff 1.00, accuracy = 98.90%, recall = 98.90%, precision = 100.00%, ambient false positives = 49, estimated false positives per hour = 3.37798, loss = 0.00294, auc = 0.99828, average viable recall = 0.950621912
+INFO:absl:So far the best minimization quantity is 0.000 with best maximization quantity of 97.89851%; no faph cutoff is 0.98
+INFO:absl:Step #16500: rate 0.001000, accuracy 99.92%, recall 98.37%, precision 99.18%, cross entropy 0.002512
+INFO:absl:Step 16500 (nonstreaming): Validation: recall at no faph = 0.000 with cutoff 1.00, accuracy = 98.94%, recall = 98.94%, precision = 100.00%, ambient false positives = 40, estimated false positives per hour = 2.75753, loss = 0.00250, auc = 0.99947, average viable recall = 0.966295750
+INFO:absl:So far the best minimization quantity is 0.000 with best maximization quantity of 97.89851%; no faph cutoff is 0.98
+INFO:absl:Step #17000: rate 0.001000, accuracy 99.94%, recall 98.75%, precision 99.37%, cross entropy 0.002084
+INFO:absl:Step 17000 (nonstreaming): Validation: recall at no faph = 0.000 with cutoff 1.00, accuracy = 98.14%, recall = 98.14%, precision = 100.00%, ambient false positives = 15, estimated false positives per hour = 1.03408, loss = 0.00432, auc = 0.99798, average viable recall = 0.961174913
+INFO:absl:So far the best minimization quantity is 0.000 with best maximization quantity of 97.89851%; no faph cutoff is 0.98
+INFO:absl:Step #17500: rate 0.001000, accuracy 99.93%, recall 98.60%, precision 99.27%, cross entropy 0.002238
+INFO:absl:Step 17500 (nonstreaming): Validation: recall at no faph = 0.000 with cutoff 1.00, accuracy = 98.52%, recall = 98.52%, precision = 100.00%, ambient false positives = 63, estimated false positives per hour = 4.34312, loss = 0.00433, auc = 0.99777, average viable recall = 0.924683608
+INFO:absl:So far the best minimization quantity is 0.000 with best maximization quantity of 97.89851%; no faph cutoff is 0.98
+INFO:absl:Step #18000: rate 0.001000, accuracy 99.94%, recall 98.76%, precision 99.38%, cross entropy 0.002159
+INFO:absl:Step 18000 (nonstreaming): Validation: recall at no faph = 0.000 with cutoff 1.00, accuracy = 98.62%, recall = 98.62%, precision = 100.00%, ambient false positives = 43, estimated false positives per hour = 2.96435, loss = 0.00315, auc = 0.99887, average viable recall = 0.926207959
+INFO:absl:So far the best minimization quantity is 0.000 with best maximization quantity of 97.89851%; no faph cutoff is 0.98
+INFO:absl:Step #18500: rate 0.001000, accuracy 99.92%, recall 98.11%, precision 99.25%, cross entropy 0.003146
+INFO:absl:Step 18500 (nonstreaming): Validation: recall at no faph = 0.000 with cutoff 1.00, accuracy = 99.08%, recall = 99.08%, precision = 100.00%, ambient false positives = 112, estimated false positives per hour = 7.72109, loss = 0.00328, auc = 0.99986, average viable recall = 0.961147492
+INFO:absl:So far the best minimization quantity is 0.000 with best maximization quantity of 97.89851%; no faph cutoff is 0.98
+INFO:absl:Step #19000: rate 0.001000, accuracy 99.94%, recall 98.90%, precision 99.14%, cross entropy 0.002312
+INFO:absl:Step 19000 (nonstreaming): Validation: recall at no faph = 0.000 with cutoff 1.00, accuracy = 97.98%, recall = 97.98%, precision = 100.00%, ambient false positives = 21, estimated false positives per hour = 1.44771, loss = 0.00429, auc = 0.99787, average viable recall = 0.960382730
+INFO:absl:So far the best minimization quantity is 0.000 with best maximization quantity of 97.89851%; no faph cutoff is 0.98
+INFO:absl:Step #19500: rate 0.001000, accuracy 99.94%, recall 98.91%, precision 99.30%, cross entropy 0.001974
+INFO:absl:Step 19500 (nonstreaming): Validation: recall at no faph = 0.000 with cutoff 1.00, accuracy = 97.72%, recall = 97.72%, precision = 100.00%, ambient false positives = 46, estimated false positives per hour = 3.17116, loss = 0.00541, auc = 0.99804, average viable recall = 0.946918816
+INFO:absl:So far the best minimization quantity is 0.000 with best maximization quantity of 97.89851%; no faph cutoff is 0.98
+INFO:absl:Step #20000: rate 0.001000, accuracy 99.93%, recall 98.31%, precision 99.30%, cross entropy 0.002586
+INFO:absl:Step 20000 (nonstreaming): Validation: recall at no faph = 0.000 with cutoff 1.00, accuracy = 98.46%, recall = 98.46%, precision = 100.00%, ambient false positives = 52, estimated false positives per hour = 3.58479, loss = 0.00455, auc = 0.99825, average viable recall = 0.923177249
+INFO:absl:So far the best minimization quantity is 0.000 with best maximization quantity of 97.89851%; no faph cutoff is 0.98
+INFO:absl:Step #20500: rate 0.001000, accuracy 99.94%, recall 98.89%, precision 99.35%, cross entropy 0.002003
+INFO:absl:Step 20500 (nonstreaming): Validation: recall at no faph = 0.000 with cutoff 1.00, accuracy = 99.50%, recall = 99.50%, precision = 100.00%, ambient false positives = 386, estimated false positives per hour = 26.61020, loss = 0.00813, auc = 0.99785, average viable recall = 0.347490251
+INFO:absl:So far the best minimization quantity is 0.000 with best maximization quantity of 97.89851%; no faph cutoff is 0.98
+INFO:absl:Step #21000: rate 0.001000, accuracy 99.94%, recall 98.94%, precision 99.32%, cross entropy 0.002300
+INFO:absl:Step 21000 (nonstreaming): Validation: recall at no faph = 0.000 with cutoff 1.00, accuracy = 97.10%, recall = 97.10%, precision = 100.00%, ambient false positives = 7, estimated false positives per hour = 0.48257, loss = 0.00741, auc = 0.99548, average viable recall = 0.940212311
+INFO:absl:So far the best minimization quantity is 0.000 with best maximization quantity of 97.89851%; no faph cutoff is 0.98
+INFO:absl:Step #21500: rate 0.001000, accuracy 99.93%, recall 98.62%, precision 99.18%, cross entropy 0.002283
+INFO:absl:Step 21500 (nonstreaming): Validation: recall at no faph = 0.000 with cutoff 1.00, accuracy = 98.98%, recall = 98.98%, precision = 100.00%, ambient false positives = 288, estimated false positives per hour = 19.85424, loss = 0.00655, auc = 0.99789, average viable recall = 0.675645218
+INFO:absl:So far the best minimization quantity is 0.000 with best maximization quantity of 97.89851%; no faph cutoff is 0.98
+INFO:absl:Step #22000: rate 0.001000, accuracy 99.94%, recall 98.68%, precision 99.48%, cross entropy 0.002169
+INFO:absl:Step 22000 (nonstreaming): Validation: recall at no faph = 0.000 with cutoff 1.00, accuracy = 98.38%, recall = 98.38%, precision = 100.00%, ambient false positives = 28, estimated false positives per hour = 1.93027, loss = 0.00435, auc = 0.99737, average viable recall = 0.928873883
+INFO:absl:So far the best minimization quantity is 0.000 with best maximization quantity of 97.89851%; no faph cutoff is 0.98
+INFO:absl:Step #22500: rate 0.001000, accuracy 99.93%, recall 98.57%, precision 99.18%, cross entropy 0.002040
+INFO:absl:Step 22500 (nonstreaming): Validation: recall at no faph = 0.000 with cutoff 1.00, accuracy = 98.82%, recall = 98.82%, precision = 100.00%, ambient false positives = 25, estimated false positives per hour = 1.72346, loss = 0.00300, auc = 0.99888, average viable recall = 0.965322643
+INFO:absl:So far the best minimization quantity is 0.000 with best maximization quantity of 97.89851%; no faph cutoff is 0.98
+INFO:absl:Step #23000: rate 0.001000, accuracy 99.95%, recall 98.80%, precision 99.60%, cross entropy 0.001933
+INFO:absl:Step 23000 (nonstreaming): Validation: recall at no faph = 97.837 with cutoff 0.90, accuracy = 98.68%, recall = 98.68%, precision = 100.00%, ambient false positives = 21, estimated false positives per hour = 1.44771, loss = 0.00385, auc = 0.99668, average viable recall = 0.985015746
+INFO:absl:Sharding callback duration: 26 microseconds
+INFO:absl:So far the best minimization quantity is 0.000 with best maximization quantity of 98.50157%; no faph cutoff is 0.90
+INFO:absl:Step #23500: rate 0.001000, accuracy 99.95%, recall 98.93%, precision 99.58%, cross entropy 0.001794
+INFO:absl:Step 23500 (nonstreaming): Validation: recall at no faph = 0.000 with cutoff 1.00, accuracy = 98.64%, recall = 98.64%, precision = 100.00%, ambient false positives = 13, estimated false positives per hour = 0.89620, loss = 0.00400, auc = 0.99718, average viable recall = 0.968129072
+INFO:absl:So far the best minimization quantity is 0.000 with best maximization quantity of 98.50157%; no faph cutoff is 0.90
+INFO:absl:Step #24000: rate 0.001000, accuracy 99.93%, recall 98.84%, precision 99.13%, cross entropy 0.002291
+INFO:absl:Step 24000 (nonstreaming): Validation: recall at no faph = 0.000 with cutoff 1.00, accuracy = 98.70%, recall = 98.70%, precision = 100.00%, ambient false positives = 92, estimated false positives per hour = 6.34233, loss = 0.00360, auc = 0.99896, average viable recall = 0.928223796
+INFO:absl:So far the best minimization quantity is 0.000 with best maximization quantity of 98.50157%; no faph cutoff is 0.90
+INFO:absl:Step #24500: rate 0.001000, accuracy 99.95%, recall 99.12%, precision 99.41%, cross entropy 0.001669
+INFO:absl:Step 24500 (nonstreaming): Validation: recall at no faph = 96.174 with cutoff 0.98, accuracy = 98.48%, recall = 98.48%, precision = 100.00%, ambient false positives = 14, estimated false positives per hour = 0.96514, loss = 0.00313, auc = 0.99899, average viable recall = 0.984235116
+INFO:absl:So far the best minimization quantity is 0.000 with best maximization quantity of 98.50157%; no faph cutoff is 0.90
+INFO:absl:Step #25000: rate 0.001000, accuracy 99.94%, recall 98.57%, precision 99.40%, cross entropy 0.002131
+INFO:absl:Step 25000 (nonstreaming): Validation: recall at no faph = 95.413 with cutoff 0.99, accuracy = 98.80%, recall = 98.80%, precision = 100.00%, ambient false positives = 23, estimated false positives per hour = 1.58558, loss = 0.00313, auc = 0.99895, average viable recall = 0.984649414
+INFO:absl:So far the best minimization quantity is 0.000 with best maximization quantity of 98.50157%; no faph cutoff is 0.90
+INFO:absl:Step #25500: rate 0.001000, accuracy 99.92%, recall 98.26%, precision 99.12%, cross entropy 0.002778
+INFO:absl:Step 25500 (nonstreaming): Validation: recall at no faph = 96.915 with cutoff 0.94, accuracy = 98.70%, recall = 98.70%, precision = 100.00%, ambient false positives = 11, estimated false positives per hour = 0.75832, loss = 0.00274, auc = 0.99889, average viable recall = 0.986840094
+INFO:absl:Sharding callback duration: 32 microseconds
+INFO:absl:So far the best minimization quantity is 0.000 with best maximization quantity of 98.68401%; no faph cutoff is 0.94
+INFO:absl:Step #26000: rate 0.001000, accuracy 99.95%, recall 99.03%, precision 99.32%, cross entropy 0.002016
+INFO:absl:Step 26000 (nonstreaming): Validation: recall at no faph = 96.995 with cutoff 0.98, accuracy = 98.76%, recall = 98.76%, precision = 100.00%, ambient false positives = 40, estimated false positives per hour = 2.75753, loss = 0.00286, auc = 0.99898, average viable recall = 0.980712601
+INFO:absl:So far the best minimization quantity is 0.000 with best maximization quantity of 98.68401%; no faph cutoff is 0.94
+INFO:absl:Step #26500: rate 0.001000, accuracy 99.93%, recall 98.38%, precision 99.31%, cross entropy 0.002400
+INFO:absl:Step 26500 (nonstreaming): Validation: recall at no faph = 0.000 with cutoff 1.00, accuracy = 98.66%, recall = 98.66%, precision = 100.00%, ambient false positives = 82, estimated false positives per hour = 5.65294, loss = 0.00388, auc = 0.99896, average viable recall = 0.843463002
+INFO:absl:So far the best minimization quantity is 0.000 with best maximization quantity of 98.68401%; no faph cutoff is 0.94
+INFO:absl:Step #27000: rate 0.001000, accuracy 99.94%, recall 98.72%, precision 99.26%, cross entropy 0.001882
+INFO:absl:Step 27000 (nonstreaming): Validation: recall at no faph = 0.000 with cutoff 1.00, accuracy = 99.00%, recall = 99.00%, precision = 100.00%, ambient false positives = 64, estimated false positives per hour = 4.41205, loss = 0.00429, auc = 0.99716, average viable recall = 0.863596549
+INFO:absl:So far the best minimization quantity is 0.000 with best maximization quantity of 98.68401%; no faph cutoff is 0.94
+INFO:absl:Step #27500: rate 0.001000, accuracy 99.94%, recall 98.93%, precision 99.35%, cross entropy 0.001746
+INFO:absl:Step 27500 (nonstreaming): Validation: recall at no faph = 0.000 with cutoff 1.00, accuracy = 98.88%, recall = 98.88%, precision = 100.00%, ambient false positives = 49, estimated false positives per hour = 3.37798, loss = 0.00315, auc = 0.99877, average viable recall = 0.933081750
+INFO:absl:So far the best minimization quantity is 0.000 with best maximization quantity of 98.68401%; no faph cutoff is 0.94
+INFO:absl:Step #28000: rate 0.001000, accuracy 99.94%, recall 98.78%, precision 99.22%, cross entropy 0.002037
+INFO:absl:Step 28000 (nonstreaming): Validation: recall at no faph = 95.853 with cutoff 0.98, accuracy = 98.74%, recall = 98.74%, precision = 100.00%, ambient false positives = 27, estimated false positives per hour = 1.86134, loss = 0.00302, auc = 0.99798, average viable recall = 0.984857925
+INFO:absl:So far the best minimization quantity is 0.000 with best maximization quantity of 98.68401%; no faph cutoff is 0.94
+INFO:absl:Step #28500: rate 0.001000, accuracy 99.94%, recall 98.74%, precision 99.32%, cross entropy 0.002280
+INFO:absl:Step 28500 (nonstreaming): Validation: recall at no faph = 0.000 with cutoff 1.00, accuracy = 98.80%, recall = 98.80%, precision = 100.00%, ambient false positives = 76, estimated false positives per hour = 5.23931, loss = 0.00335, auc = 0.99897, average viable recall = 0.930917092
+INFO:absl:So far the best minimization quantity is 0.000 with best maximization quantity of 98.68401%; no faph cutoff is 0.94
+INFO:absl:Step #29000: rate 0.001000, accuracy 99.94%, recall 98.74%, precision 99.39%, cross entropy 0.002235
+INFO:absl:Step 29000 (nonstreaming): Validation: recall at no faph = 0.000 with cutoff 1.00, accuracy = 98.90%, recall = 98.90%, precision = 100.00%, ambient false positives = 70, estimated false positives per hour = 4.82568, loss = 0.00339, auc = 0.99897, average viable recall = 0.929048117
+INFO:absl:So far the best minimization quantity is 0.000 with best maximization quantity of 98.68401%; no faph cutoff is 0.94
+INFO:absl:Step #29500: rate 0.001000, accuracy 99.95%, recall 98.72%, precision 99.60%, cross entropy 0.002396
+INFO:absl:Step 29500 (nonstreaming): Validation: recall at no faph = 0.000 with cutoff 1.00, accuracy = 98.32%, recall = 98.32%, precision = 100.00%, ambient false positives = 31, estimated false positives per hour = 2.13709, loss = 0.00393, auc = 0.99871, average viable recall = 0.928396335
+INFO:absl:So far the best minimization quantity is 0.000 with best maximization quantity of 98.68401%; no faph cutoff is 0.94
+INFO:absl:Step #30000: rate 0.001000, accuracy 99.95%, recall 99.03%, precision 99.37%, cross entropy 0.001536
+INFO:absl:Step 30000 (nonstreaming): Validation: recall at no faph = 0.000 with cutoff 1.00, accuracy = 98.68%, recall = 98.68%, precision = 100.00%, ambient false positives = 52, estimated false positives per hour = 3.58479, loss = 0.00404, auc = 0.99857, average viable recall = 0.929063607
+INFO:absl:So far the best minimization quantity is 0.000 with best maximization quantity of 98.68401%; no faph cutoff is 0.94
+INFO:absl:Sharding callback duration: 63 microseconds
+WARNING:absl:ring_buffer_size_in_time_dim overwritten by the passed-in value: 4
+WARNING:absl:ring_buffer_size_in_time_dim overwritten by the passed-in value: 10
+WARNING:absl:ring_buffer_size_in_time_dim overwritten by the passed-in value: 14
+WARNING:absl:ring_buffer_size_in_time_dim overwritten by the passed-in value: 22
+WARNING:absl:ring_buffer_size_in_time_dim overwritten by the passed-in value: 16
+INFO:absl:None
+INFO:absl:Saving streaming model
+WARNING:absl:ring_buffer_size_in_time_dim overwritten by the passed-in value: 2
+WARNING:absl:ring_buffer_size_in_time_dim overwritten by the passed-in value: 4
+WARNING:absl:ring_buffer_size_in_time_dim overwritten by the passed-in value: 10
+WARNING:absl:ring_buffer_size_in_time_dim overwritten by the passed-in value: 14
+WARNING:absl:ring_buffer_size_in_time_dim overwritten by the passed-in value: 22
+WARNING:absl:ring_buffer_size_in_time_dim overwritten by the passed-in value: 16
+INFO:absl:Function `call` contains input name(s) resource with unsupported characters which will be renamed to dense_1_1_add_readvariableop_resource in the SavedModel.
+INFO:absl:Function `call` contains input name(s) resource with unsupported characters which will be renamed to dense_1_1_add_readvariableop_resource in the SavedModel.
+INFO:absl:Sharding callback duration: 17 microseconds
+INFO:absl:Sharding callback duration: 17 microseconds
+INFO:absl:Writing fingerprint to trained_models/wakeword/stream_state_internal/fingerprint.pb
+INFO:absl:Converting quantized streaming model to TFLite
+fully_quantize: 0, inference_type: 6, input_inference_type: INT8, output_inference_type: UINT8
+INFO:absl:Testing the TFLite quantized streaming model false accept per hour and false rejection rates at various cutoffs.
+INFO: Created TensorFlow Lite XNNPACK delegate for CPU.
+INFO:absl:Testing the testing_ambient set.
+INFO:absl:Testing the testing set.
 Traceback (most recent call last):
   File "<frozen runpy>", line 198, in _run_module_as_main
   File "<frozen runpy>", line 88, in _run_code
-  File "/workspace/training/microWakeWord/microwakeword/model_train_eval.py", line 35, in <module>
-    import microwakeword.train as train
-  File "/workspace/training/microWakeWord/microwakeword/train.py", line 468, in <module>
-    _trapz_fn = getattr(np, 'trapezoid', np.trapz)
-                                         ^^^^^^^^
+  File "/workspace/training/microWakeWord/microwakeword/model_train_eval.py", line 430, in <module>
+    evaluate_model(
+  File "/workspace/training/microWakeWord/microwakeword/model_train_eval.py", line 266, in evaluate_model
+    test.tflite_streaming_model_roc(
+  File "/workspace/training/microWakeWord/microwakeword/test.py", line 391, in tflite_streaming_model_roc
+    auc = np.trapz(y_coordinates, x_coordinates)
+          ^^^^^^^^
   File "/usr/local/lib/python3.11/dist-packages/numpy/__init__.py", line 792, in __getattr__
     raise AttributeError(f"module {__name__!r} has no attribute {attr!r}")
 AttributeError: module 'numpy' has no attribute 'trapz'. Did you mean: 'trace'?
