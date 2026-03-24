@@ -541,6 +541,19 @@ def validate_nonstreaming(config, data_processor, model, test_set):
 with open(_train_py_path, 'w') as f:
     f.write(_src + _patch)
 
+# Also fix np.trapz calls in test.py (NumPy 2.x removed trapz, renamed to trapezoid)
+_test_py_path = 'microWakeWord/microwakeword/test.py'
+if os.path.exists(_test_py_path):
+    with open(_test_py_path, 'r') as f:
+        _test_src = f.read()
+    if 'np.trapz(' in _test_src:
+        _test_src = _test_src.replace('np.trapz(', '(np.trapezoid if hasattr(np, "trapezoid") else np.trapz)(')
+        if 'import numpy as np' not in _test_src:
+            _test_src = 'import numpy as np\n' + _test_src
+        with open(_test_py_path, 'w') as f:
+            f.write(_test_src)
+        print("[patch] Fixed np.trapz → np.trapezoid in test.py")
+
 if not os.path.exists('piper-sample-generator'):
     subprocess.run(
         ['git', 'clone', 'https://github.com/rhasspy/piper-sample-generator.git'],
