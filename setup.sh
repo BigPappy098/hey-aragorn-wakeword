@@ -45,7 +45,7 @@ apt-get install -y -q ffmpeg espeak-ng libespeak-ng-dev 2>/dev/null || \
 
 # Pre-install slow packages so train.py doesn't have to
 echo "Installing additional dependencies..."
-pip install -q soundfile librosa "audiomentations>=0.35.0" webrtcvad "datasets<3"
+pip install -q soundfile librosa scipy "audiomentations>=0.35.0" webrtcvad "datasets<3" tqdm onnxruntime
 
 # PyTorch: only needed for piper-tts (sample generation, not training).
 # Install the build matching the driver's CUDA version so GPU is available.

@@ -357,7 +357,10 @@ else:
             print(f"\n📤 Upload your recording file(s) here:")
             print(f"   https://github.com/{GITHUB_REPO}/upload/main/real_recordings")
             print(f"\n   Supported formats: .wav  .mp3  .m4a  .flac")
-            print(f"   Tip: One long file with 10-50 repetitions, 1-2 sec pause between each.\n")
+            print(f"   Options:")
+            print(f"     A) One long file per person with 10-50 repetitions, 1-2 sec pauses.")
+            print(f"     B) Individual clips: speaker01_take01.wav, speaker01_take02.wav, etc.")
+            print(f"   Multiple speakers improve model quality!\n")
             prompt("Press Enter when your files are uploaded and committed to GitHub...")
             git_configure()
             subprocess.run(['git', 'pull', 'origin', 'main'], check=True, cwd=REPO_ROOT)
@@ -371,6 +374,8 @@ else:
             print("📢 Skipping real recordings — using 100% synthetic samples.")
     else:
         print("   Place .wav/.mp3/.m4a/.flac files in real_recordings/ and re-run.")
+        print("   Tip: Record one long file per person with 10-50 repetitions,")
+        print("        or individual clips named speaker01_take01.wav, speaker01_take02.wav, etc.")
         print("📢 Continuing with 100% synthetic samples.")
 
 SYNTHETIC_COUNT = NUM_SAMPLES // 2 if USING_REAL else NUM_SAMPLES
@@ -380,8 +385,8 @@ REAL_TARGET     = NUM_SAMPLES // 2 if USING_REAL else 0
 print("\n[Step 3] Cloning microWakeWord + piper-sample-generator...")
 if os.path.exists('microWakeWord'):
     shutil.rmtree('microWakeWord')
-subprocess.run(['git', 'clone', 'https://github.com/kahrendt/microWakeWord.git'],
-               check=True)
+subprocess.run(['git', 'clone', 'https://github.com/TaterTotterson/micro-wake-word.git',
+                'microWakeWord'], check=True)
 subprocess.run([sys.executable, '-m', 'pip', 'install', '-q', '-e', 'microWakeWord'],
                check=True)
 # Explicit installs matching the working Colab notebook
@@ -581,8 +586,19 @@ if os.path.exists(_test_py_path):
 
 if not os.path.exists('piper-sample-generator'):
     subprocess.run(
-        ['git', 'clone', 'https://github.com/rhasspy/piper-sample-generator.git'],
+        ['git', 'clone', 'https://github.com/TaterTotterson/piper-sample-generator.git'],
         check=True)
+else:
+    # Ensure we have TaterTotterson's fork, not rhasspy's
+    _remote = subprocess.run(
+        ['git', '-C', 'piper-sample-generator', 'remote', 'get-url', 'origin'],
+        capture_output=True, text=True).stdout.strip()
+    if 'TaterTotterson' not in _remote:
+        print("[dep] Replacing rhasspy piper-sample-generator with TaterTotterson's fork...")
+        shutil.rmtree('piper-sample-generator')
+        subprocess.run(
+            ['git', 'clone', 'https://github.com/TaterTotterson/piper-sample-generator.git'],
+            check=True)
 print("✅ Repos ready")
 
 # ── Ensure PyTorch + piper-tts are available (needed by piper-sample-generator)
@@ -712,9 +728,19 @@ os.makedirs('piper-sample-generator/models', exist_ok=True)
 model_path = 'piper-sample-generator/models/en_US-libritts_r-medium.pt'
 if not os.path.exists(model_path):
     urllib.request.urlretrieve(
-        'https://github.com/rhasspy/piper-sample-generator/releases/download/'
-        'v2.0.0/en_US-libritts_r-medium.pt',
+        'https://github.com/TaterTotterson/piper-sample-generator/releases/download/'
+        'models/en_US-libritts_r-medium.pt',
         model_path)
+# Also download the companion JSON config if missing
+_model_json = model_path + '.json'
+if not os.path.exists(_model_json):
+    try:
+        urllib.request.urlretrieve(
+            'https://github.com/TaterTotterson/piper-sample-generator/releases/download/'
+            'models/en_US-libritts_r-medium.pt.json',
+            _model_json)
+    except Exception:
+        pass  # Not critical — generator works without it
 print("✅ Piper model ready")
 
 # ── Preview step ──────────────────────────────────────────────────────────────
@@ -802,7 +828,7 @@ print(f"✅ {synth_count} synthetic samples generated")
 if USING_REAL:
     print(f"\n[Step 7b] Processing real recordings → target {REAL_TARGET} augmented clips...")
     # soundfile + librosa should already be installed; ensure they are
-    subprocess.run([sys.executable, '-m', 'pip', 'install', '-q', 'soundfile', 'librosa'],
+    subprocess.run([sys.executable, '-m', 'pip', 'install', '-q', 'soundfile', 'librosa', 'scipy', 'tqdm'],
                    check=True, capture_output=True)
     import soundfile as sf
     import librosa
@@ -898,9 +924,15 @@ if USING_REAL:
         audio_np, sr = librosa.load(fpath, sr=16000, mono=True)
         dur_s = len(audio_np) / sr
         print(f"    Audio duration: {dur_s:.1f}s")
-        clips = adaptive_split(audio_np, sr)
-        print(f"    {len(clips)} valid clips extracted")
-        raw_clips.extend(clips)
+        if dur_s <= 4.0:
+            # Short file — treat as a single clip (individual take recording)
+            print(f"    Short clip — using as-is")
+            raw_clips.append(audio_np)
+        else:
+            # Long file — split into individual utterances
+            clips = adaptive_split(audio_np, sr)
+            print(f"    {len(clips)} valid clips extracted")
+            raw_clips.extend(clips)
 
     print(f"  Total individual clips: {len(raw_clips)}")
 
@@ -921,118 +953,327 @@ if USING_REAL:
         print(f"✅ {len(raw_clips)} trimmed clips saved to {PERSONAL_CLIPS_DIR}/")
         print(f"   (Will be augmented via microWakeWord pipeline in Step 9b)")
 
-# ── Step 8: Augmentation data ─────────────────────────────────────────────────
-print("\n[Step 8] Downloading RIRs + background noise (~1.3 GB)...")
-if not os.listdir('mit_rirs'):
-    subprocess.run(['wget', '-q', '--show-progress', '-O', '/tmp/rirs_noises.zip',
-                    'https://www.openslr.org/resources/28/rirs_noises.zip'], check=True)
-    subprocess.run(['unzip', '-q', '/tmp/rirs_noises.zip', '-d', 'mit_rirs'], check=True)
-    os.remove('/tmp/rirs_noises.zip')
+# ── Step 8: Augmentation data — RIRs + background noise ──────────────────────
+# Match TaterTotterson's full augmentation pipeline:
+#   impulse_paths: MIT RIRs (resampled to 16k)
+#   background_paths: WHAM + CHiME + FMA + AudioSet (all 16k mono WAV)
+print("\n[Step 8] Downloading augmentation datasets (RIRs + background noise)...")
+os.makedirs('training_datasets', exist_ok=True)
+
+import scipy.io.wavfile as _wavfile
+
+def _convert_to_16k(src_dir, dst_dir, glob_pattern='*.wav', label='audio'):
+    """Convert all audio files in src_dir matching glob_pattern to 16k mono WAV."""
+    import librosa as _lr
+    from pathlib import Path
+    src, dst = Path(src_dir), Path(dst_dir)
+    dst.mkdir(parents=True, exist_ok=True)
+    existing = set(os.listdir(dst_dir)) if os.path.isdir(dst_dir) else set()
+    files = list(src.rglob(glob_pattern))
+    if not files:
+        print(f"    No {glob_pattern} files found in {src_dir}")
+        return 0
+    ok, skipped, bad = 0, 0, 0
+    for i, p in enumerate(files):
+        out_name = '__'.join(p.relative_to(src).parts)  # flatten dir structure
+        if not out_name.lower().endswith('.wav'):
+            out_name = p.stem + '.wav'
+        if out_name in existing:
+            skipped += 1
+            continue
+        try:
+            y, _ = _lr.load(str(p), sr=16000, mono=True)
+            if y.size == 0:
+                raise ValueError("empty")
+            x = np.clip(y, -1.0, 1.0)
+            _wavfile.write(str(dst / out_name), 16000, (x * 32767).astype(np.int16))
+            ok += 1
+        except Exception:
+            bad += 1
+        if (i + 1) % 500 == 0 or (i + 1) == len(files):
+            print(f"    {label}: {i+1}/{len(files)} ({ok} ok, {skipped} skip, {bad} fail)")
+    print(f"  {label}: {ok} converted, {skipped} skipped, {bad} failed")
+    return ok + skipped
+
+def _download_extract(url, archive_name, extract_dir, extract_cmd=None):
+    """Download an archive and extract it, skipping if extract_dir already has files."""
+    archive_path = f'training_datasets/downloads/{archive_name}'
+    os.makedirs('training_datasets/downloads', exist_ok=True)
+    os.makedirs(extract_dir, exist_ok=True)
+    if not os.path.exists(archive_path):
+        print(f"    Downloading {archive_name}...")
+        try:
+            subprocess.run(['wget', '-q', '--show-progress', '-O', archive_path, url],
+                           check=True, timeout=3600)
+        except Exception as e:
+            print(f"    WARNING: Download failed ({e}). Trying curl...")
+            subprocess.run(['curl', '-sfL', url, '-o', archive_path],
+                           check=True, timeout=3600)
+    if extract_cmd:
+        print(f"    Extracting {archive_name}...")
+        subprocess.run(extract_cmd, check=True)
+    else:
+        # Auto-detect by extension
+        if archive_name.endswith('.zip'):
+            print(f"    Extracting {archive_name}...")
+            subprocess.run(['unzip', '-q', '-o', archive_path, '-d', extract_dir], check=True)
+        elif archive_name.endswith('.tar.gz') or archive_name.endswith('.tgz'):
+            print(f"    Extracting {archive_name}...")
+            subprocess.run(['tar', '-xzf', archive_path, '-C', extract_dir], check=True)
+        elif archive_name.endswith('.tar'):
+            print(f"    Extracting {archive_name}...")
+            subprocess.run(['tar', '-xf', archive_path, '-C', extract_dir], check=True)
+    # Clean up archive to save space
+    if os.path.exists(archive_path):
+        os.remove(archive_path)
+        print(f"    Removed {archive_name} (saving disk space)")
+
+# --- MIT RIRs (room impulse responses) ---
+MIT_RIRS_16K = 'training_datasets/mit_rirs_16k'
+if not os.path.isdir('mit_rirs') or not os.listdir('mit_rirs'):
+    _download_extract(
+        'https://www.openslr.org/resources/28/rirs_noises.zip',
+        'rirs_noises.zip', 'mit_rirs')
+if not os.path.isdir(MIT_RIRS_16K) or len(os.listdir(MIT_RIRS_16K)) < 10:
+    print("  Converting MIT RIRs → 16k mono WAV...")
+    _convert_to_16k('mit_rirs', MIT_RIRS_16K, '*.wav', 'MIT RIRs')
+else:
+    print("  MIT RIRs 16k: already converted")
+
+# --- WHAM (real-world noise from urban environments) ---
+WHAM_16K = 'training_datasets/wham_16k'
+if not os.path.isdir(WHAM_16K) or len(os.listdir(WHAM_16K)) < 10:
+    _wham_raw = 'training_datasets/wham'
+    if not os.path.isdir(_wham_raw) or len(os.listdir(_wham_raw)) < 5:
+        _download_extract(
+            'https://my-bucket-a8b4b49c25c811ee9a7e8bba05fa24c7.s3.amazonaws.com/wham_noise.zip',
+            'wham_noise.zip', _wham_raw)
+    print("  Converting WHAM → 16k mono WAV...")
+    _convert_to_16k(_wham_raw, WHAM_16K, '*.wav', 'WHAM')
+    # Clean up raw files to save space
+    if os.path.isdir(_wham_raw):
+        shutil.rmtree(_wham_raw)
+        print("    Removed raw WHAM files (saving disk space)")
+else:
+    print("  WHAM 16k: already converted")
+
+# --- CHiME-Home (domestic environment recordings) ---
+CHIME_16K = 'training_datasets/chime_16k'
+if not os.path.isdir(CHIME_16K) or len(os.listdir(CHIME_16K)) < 10:
+    _chime_raw = 'training_datasets/chime'
+    if not os.path.isdir(_chime_raw) or len(os.listdir(_chime_raw)) < 5:
+        _download_extract(
+            'https://archive.org/download/chime-home/chime_home.tar.gz',
+            'chime_home.tar.gz', _chime_raw)
+    print("  Converting CHiME → 16k mono WAV...")
+    _convert_to_16k(_chime_raw, CHIME_16K, '*.48kHz.wav', 'CHiME')
+    if os.path.isdir(_chime_raw):
+        shutil.rmtree(_chime_raw)
+        print("    Removed raw CHiME files (saving disk space)")
+else:
+    print("  CHiME 16k: already converted")
+
+# --- FMA xsmall (Free Music Archive — music background noise) ---
+FMA_16K = 'training_datasets/fma_16k'
+if not os.path.isdir(FMA_16K) or len(os.listdir(FMA_16K)) < 10:
+    _fma_raw = 'training_datasets/fma'
+    if not os.path.isdir(_fma_raw) or len(os.listdir(_fma_raw)) < 5:
+        _download_extract(
+            'https://huggingface.co/datasets/mchl914/fma_xsmall/resolve/main/fma_xs.zip',
+            'fma_xs.zip', _fma_raw)
+    print("  Converting FMA → 16k mono WAV...")
+    _convert_to_16k(_fma_raw, FMA_16K, '*.mp3', 'FMA')
+    if os.path.isdir(_fma_raw):
+        shutil.rmtree(_fma_raw)
+        print("    Removed raw FMA files (saving disk space)")
+else:
+    print("  FMA 16k: already converted")
+
+# --- AudioSet (balanced training — diverse real-world sounds) ---
+AUDIOSET_16K = 'training_datasets/audioset_16k'
+if not os.path.isdir(AUDIOSET_16K) or len(os.listdir(AUDIOSET_16K)) < 100:
+    _audioset_raw = 'training_datasets/audioset'
+    os.makedirs(_audioset_raw, exist_ok=True)
+    os.makedirs('training_datasets/downloads', exist_ok=True)
+    # AudioSet balanced has 10 tarballs — try multiple HuggingFace revisions
+    _as_base = 'https://huggingface.co/datasets/agkphysics/AudioSet/resolve'
+    _as_revs = [
+        '6762f044d1c88619c7f2006486036192128fb07e',
+        '0049167e89f259a010c3f070fe3666d9e5242836',
+        'main',
+    ]
+    _as_patterns = ['data/bal_train0', 'data/bal_train/bal_train0']
+    _as_rev = None
+    _as_pat = None
+    for _rev in _as_revs:
+        for _pat in _as_patterns:
+            _test_url = f'{_as_base}/{_rev}/{_pat}0.tar'
+            try:
+                _probe = subprocess.run(
+                    ['curl', '-I', '-L', '--fail', '-s', _test_url],
+                    capture_output=True, timeout=30)
+                if _probe.returncode == 0:
+                    _as_rev, _as_pat = _rev, _pat
+                    break
+            except Exception:
+                pass
+        if _as_rev:
+            break
+
+    if _as_rev:
+        print(f"  Downloading AudioSet balanced (10 tarballs)...")
+        for _i in range(10):
+            _tar_name = f'bal_train0{_i}.tar'
+            _tar_path = f'training_datasets/downloads/{_tar_name}'
+            if not os.path.exists(_tar_path):
+                _url = f'{_as_base}/{_as_rev}/{_as_pat}{_i}.tar'
+                print(f"    Downloading {_tar_name}...")
+                try:
+                    subprocess.run(['curl', '-L', '-s', '--fail', _url, '-o', _tar_path],
+                                   check=True, timeout=1800)
+                except Exception as e:
+                    print(f"    WARNING: Failed to download {_tar_name} ({e}), skipping")
+                    continue
+            if os.path.exists(_tar_path):
+                print(f"    Extracting {_tar_name}...")
+                subprocess.run(['tar', '-xf', _tar_path, '-C', _audioset_raw], check=False)
+                os.remove(_tar_path)
+        print("  Converting AudioSet → 16k mono WAV...")
+        _convert_to_16k(_audioset_raw, AUDIOSET_16K, '*.flac', 'AudioSet')
+        if os.path.isdir(_audioset_raw):
+            shutil.rmtree(_audioset_raw)
+            print("    Removed raw AudioSet files (saving disk space)")
+    else:
+        print("  WARNING: Could not locate AudioSet on HuggingFace — skipping.")
+        print("           (Training will still work with remaining noise sources)")
+else:
+    print("  AudioSet 16k: already converted")
+
+# Build the paths lists for the augmenter
+_impulse_paths = [MIT_RIRS_16K]
+_background_paths = []
+for _bp in [WHAM_16K, CHIME_16K, FMA_16K, AUDIOSET_16K]:
+    if os.path.isdir(_bp) and os.listdir(_bp):
+        _background_paths.append(_bp)
+if not _background_paths:
+    # Fallback: use the point-source noises from MIT RIRs
+    _bg_fallback = 'mit_rirs/RIRS_NOISES/pointsource_noises'
+    if os.path.isdir(_bg_fallback):
+        _background_paths.append(_bg_fallback)
+    print("  WARNING: No background noise datasets available. Using MIT point-source noises as fallback.")
+else:
+    print(f"  Background noise sources: {len(_background_paths)} datasets ready")
+print(f"  Impulse response sources: {len(_impulse_paths)} datasets ready")
 print("✅ Augmentation data ready")
 
 # ── Step 9: Spectrograms ──────────────────────────────────────────────────────
 print("\n[Step 9] Generating spectrograms...")
+
+# Set TF env vars before importing (match TaterTotterson's augmenter settings)
+os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
+os.environ['TF_FORCE_GPU_ALLOW_GROWTH'] = 'true'
+os.environ['TF_GPU_ALLOCATOR'] = 'cuda_malloc_async'
+os.environ['TF_XLA_FLAGS'] = '--tf_xla_auto_jit=0'
+os.environ['NVIDIA_TF32_OVERRIDE'] = '1'
+os.environ['TF_CUDNN_WORKSPACE_LIMIT_IN_MB'] = '512'
+os.environ.setdefault('XLA_FLAGS', '--xla_gpu_unsafe_fallback_to_driver_on_ptxas_not_found')
+
 sys.path.insert(0, 'microWakeWord')
 from microwakeword.audio.augmentation import Augmentation
 from microwakeword.audio.clips import Clips
 from microwakeword.audio.spectrograms import SpectrogramGeneration
 from mmap_ninja.ragged import RaggedMmap
 
-MMAP_TRAIN = 'generated_augmented_features/training/wakeword_mmap'
-MMAP_TEST  = 'generated_augmented_features/testing/wakeword_mmap'
-os.makedirs(os.path.dirname(MMAP_TRAIN), exist_ok=True)
-os.makedirs(os.path.dirname(MMAP_TEST),  exist_ok=True)
-
-clips_obj = Clips(input_directory='generated_samples', file_pattern='*.wav',
-                  max_clip_duration_s=None, remove_silence=False,
-                  random_split_seed=10, split_count=0.1)
 augmenter = Augmentation(
     augmentation_duration_s=3.2,
     augmentation_probabilities={
-        'SevenBandParametricEQ': 0.1, 'TanhDistortion': 0.1,
-        'PitchShift': 0.1, 'BandStopFilter': 0.1,
-        'AddColorNoise': 0.1, 'AddBackgroundNoise': 0.75,
-        'Gain': 1.0, 'RIR': 0.5,
+        'SevenBandParametricEQ': 0.1, 'TanhDistortion': 0.05,
+        'PitchShift': 0.15, 'BandStopFilter': 0.1,
+        'AddColorNoise': 0.1, 'AddBackgroundNoise': 0.7,
+        'Gain': 0.8, 'RIR': 0.7,
     },
-    impulse_paths=['mit_rirs'],
-    background_paths=['mit_rirs/RIRS_NOISES/pointsource_noises'],
+    impulse_paths=_impulse_paths,
+    background_paths=_background_paths,
     background_min_snr_db=5, background_max_snr_db=10,
-    min_jitter_s=0.195, max_jitter_s=0.205,
+    min_jitter_s=0.2, max_jitter_s=0.3,
 )
-spectrograms = SpectrogramGeneration(clips=clips_obj, augmenter=augmenter,
-                                     slide_frames=10, step_ms=10)
 
-print("  Writing train split...")
-RaggedMmap.from_generator(
-    out_dir=MMAP_TRAIN,
-    sample_generator=spectrograms.spectrogram_generator(split='train', repeat=2),
-    batch_size=100, verbose=True
-)
-print("  Writing test split...")
-RaggedMmap.from_generator(
-    out_dir=MMAP_TEST,
-    sample_generator=spectrograms.spectrogram_generator(split='test', repeat=1),
-    batch_size=100, verbose=True
-)
-# Create validation → testing symlink (wake word data only has train/test splits)
-val_dir = 'generated_augmented_features/validation'
-test_dir = 'generated_augmented_features/testing'
-if os.path.islink(val_dir):
-    os.unlink(val_dir)
-elif os.path.isdir(val_dir):
-    shutil.rmtree(val_dir)
-os.symlink(os.path.abspath(test_dir), val_dir)
-print("  Created validation/ → testing/ symlink")
+# ── Proper 3-way split (matching TaterTotterson's approach) ──
+# Monkey-patch Clips.audio_generator for deterministic 80/10/10 split
+import types as _types, random as _random
 
-mmap_tr = RaggedMmap(MMAP_TRAIN)
-mmap_te = RaggedMmap(MMAP_TEST)
-assert len(mmap_tr) > 0, '❌ train mmap is empty'
-assert len(mmap_te) > 0, '❌ test mmap is empty — increase NUM_SAMPLES'
-print(f"✅ {len(mmap_tr)} train | {len(mmap_te)} test spectrograms saved")
+_split_cfg = {
+    'training':   {'name': 'train',      'repetition': 2, 'slide_frames': 10},
+    'validation': {'name': 'validation', 'repetition': 1, 'slide_frames': 10},
+    'testing':    {'name': 'test',       'repetition': 1, 'slide_frames': 1},
+}
+
+def _bind_wav_generator(clips_obj, wav_dir):
+    """Patch Clips.audio_generator for deterministic 80/10/10 train/val/test split.
+    Matches TaterTotterson's bind_wav_generator approach."""
+    import librosa as _lr
+    def audio_generator_from_wavs(self, split='train', repeat=1):
+        import glob as _g
+        files = sorted(_g.glob(os.path.join(wav_dir, '*.wav')))
+        if not files:
+            return
+        rng = _random.Random(10)
+        files_shuf = files[:]
+        rng.shuffle(files_shuf)
+        n = len(files_shuf)
+        n_val = max(1, int(0.10 * n))
+        n_test = max(1, int(0.10 * n))
+        n_train = max(0, n - n_val - n_test)
+        splits = {
+            'train':      files_shuf[:n_train],
+            'validation': files_shuf[n_train:n_train + n_val],
+            'test':       files_shuf[n_train + n_val:],
+        }
+        file_list = splits.get(split, [])
+        if not file_list:
+            return
+        for _ in range(max(1, int(repeat))):
+            for p in file_list:
+                y, _sr = _lr.load(p, sr=16000, mono=True)
+                yield y.astype(np.float32, copy=False)
+    clips_obj.audio_generator = _types.MethodType(audio_generator_from_wavs, clips_obj)
+
+def _generate_feature_set(input_wav_dir, out_root_dir, label):
+    """Generate augmented spectrogram features with proper 3-way split."""
+    import glob as _g
+    files = _g.glob(os.path.join(input_wav_dir, '*.wav'))
+    if not files:
+        print(f"  No WAVs found for {label} in {input_wav_dir} — skipping")
+        return False
+    print(f"\n  Augmenting {len(files)} samples ({label})...")
+    clips = Clips(
+        input_directory=input_wav_dir, file_pattern='*.wav',
+        max_clip_duration_s=5, remove_silence=True,
+        random_split_seed=10, split_count=0.1)
+    _bind_wav_generator(clips, input_wav_dir)
+    for split_name, cfg in _split_cfg.items():
+        out_dir = os.path.join(out_root_dir, split_name, 'wakeword_mmap')
+        os.makedirs(os.path.dirname(out_dir), exist_ok=True)
+        print(f"    Writing {split_name} split ({label})...")
+        spectros = SpectrogramGeneration(
+            clips=clips, augmenter=augmenter,
+            slide_frames=cfg['slide_frames'], step_ms=10)
+        RaggedMmap.from_generator(
+            out_dir=out_dir,
+            sample_generator=spectros.spectrogram_generator(
+                split=cfg['name'], repeat=cfg['repetition']),
+            batch_size=100, verbose=False)
+        mmap_check = RaggedMmap(out_dir)
+        print(f"      {split_name}: {len(mmap_check)} spectrograms")
+    print(f"  ✅ Features ready: {out_root_dir}/*/wakeword_mmap")
+    return True
+
+_generate_feature_set('generated_samples', 'generated_augmented_features', 'synthetic')
 
 # ── Step 9b: Generate spectrograms for personal recordings ───────────────────
-PERSONAL_MMAP_TRAIN = 'personal_augmented_features/training/wakeword_mmap'
-PERSONAL_MMAP_TEST  = 'personal_augmented_features/testing/wakeword_mmap'
-
 if USING_REAL and os.path.isdir('personal_samples_trimmed'):
     print("\n[Step 9b] Generating spectrograms for personal recordings...")
-    os.makedirs(os.path.dirname(PERSONAL_MMAP_TRAIN), exist_ok=True)
-    os.makedirs(os.path.dirname(PERSONAL_MMAP_TEST),  exist_ok=True)
-
-    personal_clips = Clips(
-        input_directory='personal_samples_trimmed', file_pattern='*.wav',
-        max_clip_duration_s=None, remove_silence=False,
-        random_split_seed=10, split_count=0.1)
-    # Same augmentation pipeline as synthetic samples
-    personal_spectrograms = SpectrogramGeneration(
-        clips=personal_clips, augmenter=augmenter,
-        slide_frames=10, step_ms=10)
-
-    print("  Writing personal train split...")
-    RaggedMmap.from_generator(
-        out_dir=PERSONAL_MMAP_TRAIN,
-        sample_generator=personal_spectrograms.spectrogram_generator(
-            split='train', repeat=2),
-        batch_size=100, verbose=True)
-    print("  Writing personal test split...")
-    RaggedMmap.from_generator(
-        out_dir=PERSONAL_MMAP_TEST,
-        sample_generator=personal_spectrograms.spectrogram_generator(
-            split='test', repeat=1),
-        batch_size=100, verbose=True)
-
-    # Validation → testing symlink for personal features too
-    p_val = 'personal_augmented_features/validation'
-    p_test = 'personal_augmented_features/testing'
-    if os.path.islink(p_val):
-        os.unlink(p_val)
-    elif os.path.isdir(p_val):
-        shutil.rmtree(p_val)
-    os.symlink(os.path.abspath(p_test), p_val)
-
-    p_mmap_tr = RaggedMmap(PERSONAL_MMAP_TRAIN)
-    p_mmap_te = RaggedMmap(PERSONAL_MMAP_TEST)
-    print(f"✅ {len(p_mmap_tr)} train | {len(p_mmap_te)} test personal spectrograms saved")
+    _generate_feature_set('personal_samples_trimmed', 'personal_augmented_features', 'personal')
 
 # ── Step 10: Negative datasets ────────────────────────────────────────────────
 print("\n[Step 10] Downloading negative datasets...")
@@ -1101,29 +1342,17 @@ for d in eval_dirs:
 config = {
     'window_step_ms': 10,
     'train_dir': 'trained_models/wakeword',
-    'spectrogram_length': 204,
-    'stride': 2,
     'features': [
-        {   # positive train (synthetic) — used during training
+        {   # positive (synthetic) — single entry; microWakeWord reads train/val/test from subdirs
             'features_dir': 'generated_augmented_features',
             'sampling_weight': 2.0, 'penalty_weight': 1.0, 'truth': True,
             'truncation_strategy': 'truncate_start', 'type': 'mmap'
         },
-        {   # positive test (synthetic) — eval only
-            'features_dir': 'generated_augmented_features',
-            'sampling_weight': 0.0, 'penalty_weight': 1.0, 'truth': True,
-            'truncation_strategy': 'split', 'type': 'mmap'
-        },
     ] + ([
-        {   # personal recordings train — weighted higher (3x) for emphasis
+        {   # personal recordings — weighted 3x for emphasis
             'features_dir': 'personal_augmented_features',
             'sampling_weight': 3.0, 'penalty_weight': 1.0, 'truth': True,
             'truncation_strategy': 'truncate_start', 'type': 'mmap'
-        },
-        {   # personal recordings test — eval only
-            'features_dir': 'personal_augmented_features',
-            'sampling_weight': 0.0, 'penalty_weight': 1.0, 'truth': True,
-            'truncation_strategy': 'split', 'type': 'mmap'
         },
     ] if USING_REAL and os.path.isdir('personal_augmented_features') else [])
     + neg_features,
@@ -1131,16 +1360,20 @@ config = {
     'positive_class_weight': [1],
     'negative_class_weight': [20],
     'learning_rates': [0.001],
-    'batch_size': 16 if LOW_RESOURCE else (32 if not _has_gpu else 128),
+    'batch_size': 16,
     'eval_step_interval': 500,
     'clip_duration_ms': 1500,
     'target_minimization': 0.9,
     'minimization_metric': None,
     'maximization_metric': 'average_viable_recall',
+    'freq_mask_count': [0],
+    'freq_mask_max_size': [0],
+    'time_mask_count': [0],
+    'time_mask_max_size': [0],
 }
 with open('training_parameters.yaml', 'w') as f:
     yaml.dump(config, f, default_flow_style=False)
-print(f"✅ Config written (batch_size={config['batch_size']}, GPU={'yes' if _has_gpu else 'no'})")
+print(f"✅ Config written (batch_size=16, stride=2, GPU={'yes' if _has_gpu else 'no'})")
 
 # ── Step 12: Train ────────────────────────────────────────────────────────────
 _skip_training = DRY_RUN or (LOW_RESOURCE and not FORCE_TRAIN)
@@ -1163,11 +1396,17 @@ if not _skip_training:
     if os.path.exists('trained_models/wakeword'):
         shutil.rmtree('trained_models/wakeword')
 
-    # Build training env — explicitly pass the cuDNN-augmented LD_LIBRARY_PATH
+    # Build training env — match TaterTotterson's TF config exactly
     train_env = {
         **os.environ,
         'TF_FORCE_GPU_ALLOW_GROWTH': 'true',
         'TF_CPP_MIN_LOG_LEVEL': '2',
+        'TF_GPU_ALLOCATOR': 'cuda_malloc_async',
+        'TF_XLA_FLAGS': '--tf_xla_auto_jit=0',
+        'NVIDIA_TF32_OVERRIDE': '1',
+        'TF_CUDNN_WORKSPACE_LIMIT_IN_MB': '512',
+        'GLOG_minloglevel': '2',
+        'GRPC_VERBOSITY': 'ERROR',
     }
     if _cudnn_lib:
         train_env['LD_LIBRARY_PATH'] = f"{_cudnn_lib}:{os.environ.get('LD_LIBRARY_PATH', '')}"
@@ -1280,15 +1519,16 @@ except Exception as e:
     train_proc = subprocess.Popen([
         sys.executable, '-m', 'microwakeword.model_train_eval',
         '--training_config=training_parameters.yaml',
-        '--train=1', '--restore_checkpoint', '0',
+        '--train=1', '--restore_checkpoint', '1',
         '--test_tf_nonstreaming', '0',
         '--test_tflite_nonstreaming', '0',
         '--test_tflite_nonstreaming_quantized', '0',
         '--test_tflite_streaming', '0',
         '--test_tflite_streaming_quantized', '1',
+        '--use_weights', 'best_weights',
         'mixednet',
         '--pointwise_filters', '64,64,64,64',
-        '--repeat_in_block', '1, 1, 1, 1',
+        '--repeat_in_block', '1,1,1,1',
         '--mixconv_kernel_sizes', '[5], [7,11], [9,15], [23]',
         '--residual_connection', '0,0,0,0',
         '--first_conv_filters', '32',
