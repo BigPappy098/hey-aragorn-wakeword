@@ -584,21 +584,13 @@ if os.path.exists(_test_py_path):
             f.write(_test_src)
         print("[patch] Fixed np.trapz → np.trapezoid in test.py")
 
-if not os.path.exists('piper-sample-generator'):
-    subprocess.run(
-        ['git', 'clone', 'https://github.com/TaterTotterson/piper-sample-generator.git'],
-        check=True)
-else:
-    # Ensure we have TaterTotterson's fork, not rhasspy's
-    _remote = subprocess.run(
-        ['git', '-C', 'piper-sample-generator', 'remote', 'get-url', 'origin'],
-        capture_output=True, text=True).stdout.strip()
-    if 'TaterTotterson' not in _remote:
-        print("[dep] Replacing rhasspy piper-sample-generator with TaterTotterson's fork...")
-        shutil.rmtree('piper-sample-generator')
-        subprocess.run(
-            ['git', 'clone', 'https://github.com/TaterTotterson/piper-sample-generator.git'],
-            check=True)
+# Always fresh-clone piper-sample-generator (like microWakeWord above) to
+# ensure we have TaterTotterson's fork with the proper package structure.
+if os.path.exists('piper-sample-generator'):
+    shutil.rmtree('piper-sample-generator')
+subprocess.run(
+    ['git', 'clone', 'https://github.com/TaterTotterson/piper-sample-generator.git'],
+    check=True)
 print("✅ Repos ready")
 
 # piper-sample-generator is run via subprocess with its repo dir on sys.path.
