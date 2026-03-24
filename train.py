@@ -171,34 +171,43 @@ def prompt(msg, default=None, valid_fn=None):
 
 
 def git_push(branch='main'):
-    """Sync with remote then push to GitHub."""
-    # Fetch latest remote state
+    """Push to GitHub, merging remote changes if needed.
+
+    Uses merge (not rebase) when histories diverge to avoid losing binary
+    files like .tflite models.  ``-X ours`` keeps our local version on
+    any conflict — correct because RunPod has the freshly trained files.
+    """
     subprocess.run(
         ['git', 'fetch', 'origin', branch],
         cwd=REPO_ROOT, capture_output=True, text=True
     )
-    # Try a normal pull --rebase first
-    pull = subprocess.run(
-        ['git', 'pull', '--rebase', 'origin', branch],
+
+    # Try pushing directly first (fast-forward)
+    result = subprocess.run(
+        ['git', 'push', 'origin', branch],
         cwd=REPO_ROOT, capture_output=True, text=True
     )
-    if pull.returncode != 0:
-        # Abort any failed rebase
-        subprocess.run(['git', 'rebase', '--abort'],
-                       cwd=REPO_ROOT, capture_output=True, text=True)
-        # Stash our commit, reset to remote, then re-apply
-        print("  [git] Histories diverged — rebasing onto remote...")
-        subprocess.run(['git', 'stash'], cwd=REPO_ROOT, capture_output=True)
-        subprocess.run(['git', 'reset', '--hard', f'origin/{branch}'],
+    if result.returncode == 0:
+        print(f"  ✅ Pushed to {branch}")
+        return
+
+    # Push rejected — remote has new commits.  Merge them in.
+    print("  [git] Remote has new commits — merging...")
+    merge = subprocess.run(
+        ['git', 'merge', f'origin/{branch}', '-X', 'ours',
+         '-m', 'Merge remote changes (keep local trained files)'],
+        cwd=REPO_ROOT, capture_output=True, text=True
+    )
+    if merge.returncode != 0:
+        # Shouldn't happen with -X ours, but handle it
+        subprocess.run(['git', 'merge', '--abort'],
                        cwd=REPO_ROOT, capture_output=True)
-        subprocess.run(['git', 'stash', 'pop'], cwd=REPO_ROOT,
-                       capture_output=True)
-        # Re-commit any unstaged changes from stash pop
-        subprocess.run(['git', 'add', '-A'], cwd=REPO_ROOT, capture_output=True)
-        subprocess.run(
-            ['git', 'commit', '--allow-empty', '-m', 'Re-apply local changes on updated remote'],
-            cwd=REPO_ROOT, capture_output=True, text=True
-        )
+        print("  ❌ Merge failed — see stderr below")
+        if merge.stderr:
+            print(f"     {merge.stderr.strip()}")
+        sys.exit(1)
+
+    # Retry push after merge
     result = subprocess.run(
         ['git', 'push', 'origin', branch],
         cwd=REPO_ROOT, capture_output=True, text=True
