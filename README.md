@@ -133,11 +133,17 @@ The script is fully interactive — it will ask you for:
 
 Then it runs automatically. See [Training Walkthrough](#training-walkthrough) below for details.
 
-### Step 9: When You're Done
+### Step 9: Keeping the Pod Running
 
-Training keeps running even if you close the browser tab — RunPod's web terminal stays alive in the background. Your data is on the volume (`/workspace/`), so it persists even if the pod is stopped and restarted.
+Training keeps running even if you close the browser tab — RunPod's web terminal stays alive in the background.
 
-To stop billing when training is complete: Go to RunPod dashboard → click **Stop** on your pod.
+**Important:** Your repo and datasets live on the volume (`/workspace/`) and survive pod restarts. But `setup.sh` installs Python packages to the **container disk**, which gets wiped when the pod stops. To avoid re-running setup after a disconnect, run this in a separate terminal (or after training finishes):
+
+```bash
+sleep infinity
+```
+
+This keeps the pod from going idle and stopping. When you're truly done and want to stop billing: Go to RunPod dashboard → click **Stop** on your pod. Next time you start it, you'll need to re-run `bash setup.sh` (takes ~5 min) but your datasets and repo will still be there.
 
 ---
 
