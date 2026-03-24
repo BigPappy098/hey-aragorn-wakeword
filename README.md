@@ -18,7 +18,6 @@ apt-get update && apt-get install -y git wget curl unzip
 git clone https://github.com/YOURUSERNAME/YOURREPO.git /workspace/training
 cd /workspace/training
 bash setup.sh
-source venv/bin/activate
 python -u train.py 2>&1 | tee training.log
 ```
 
@@ -120,14 +119,11 @@ cd /workspace/training
 bash setup.sh
 ```
 
-This creates a Python virtual environment at `/workspace/training/venv/` that inherits packages already in the container image (like TensorFlow) and installs additional dependencies. Takes **3-5 minutes**.
+This installs additional dependencies on top of what the TensorFlow container image already provides. Takes **3-5 minutes**.
 
-Because the venv lives on the **volume** (not the container disk), it survives pod stop/restart — you won't need to re-run setup unless you delete the volume.
-
-### Step 8: Activate the Venv & Start Training
+### Step 8: Start Training
 
 ```bash
-source venv/bin/activate
 python -u train.py 2>&1 | tee training.log
 ```
 
@@ -140,13 +136,13 @@ Then it runs automatically. See [Training Walkthrough](#training-walkthrough) be
 
 ### Step 9: When You're Done
 
-Everything (repo, venv, datasets, models) lives on the volume at `/workspace/`, so it all persists across pod restarts. To stop billing when you're done: Go to RunPod dashboard → click **Stop** on your pod.
+Your repo and datasets live on the volume at `/workspace/` and persist across pod restarts. Installed Python packages live on the container disk and need `bash setup.sh` again after a pod restart (~3-5 min). To stop billing when you're done: Go to RunPod dashboard → click **Stop** on your pod.
 
-If you restart the pod later, just re-activate the venv and you're ready to go:
+If you restart the pod later:
 
 ```bash
 cd /workspace/training
-source venv/bin/activate
+bash setup.sh
 python -u train.py 2>&1 | tee training.log
 ```
 

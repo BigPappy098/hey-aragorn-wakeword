@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
-# setup.sh — Install all dependencies for train.py into a persistent venv.
-# On RunPod the venv lives on the volume (/workspace/) so packages survive pod restarts.
+# setup.sh — Install all dependencies for train.py (direct pip, no venv).
+# On RunPod with tensorflow/tensorflow:latest-gpu, TensorFlow is already installed.
 set -e
 
 echo "=== microWakeWord Setup ==="
@@ -26,24 +26,9 @@ echo "Installing system packages (ffmpeg, espeak-ng)..."
 apt-get install -y -q ffmpeg espeak-ng libespeak-ng-dev 2>/dev/null || \
     echo "WARNING: Could not install system packages (apt-get failed). ffmpeg and espeak-ng must be available."
 
-# ── Python venv (persistent on the volume) ───────────────────────────────────
-# --system-site-packages lets the venv inherit packages already in the container
-# image (e.g. TensorFlow in tensorflow/tensorflow:latest-gpu), so pip skips them
-# instead of re-downloading ~600MB. Additional packages we install go into the
-# venv on the volume and survive pod stop/restart.
-VENV_DIR="$WORK_DIR/venv"
+# ── Python packages (direct pip to system Python) ────────────────────────────
+pip install --upgrade pip -q
 
-if [ -d "$VENV_DIR" ] && [ -f "$VENV_DIR/bin/activate" ]; then
-    echo "Existing venv found at $VENV_DIR — reusing."
-    source "$VENV_DIR/bin/activate"
-else
-    echo "Creating Python venv at $VENV_DIR ..."
-    python3 -m venv --system-site-packages "$VENV_DIR"
-    source "$VENV_DIR/bin/activate"
-    pip install --upgrade pip -q
-fi
-
-# ── Core dependencies ────────────────────────────────────────────────────────
 echo "Installing core dependencies..."
 pip install -q "tensorflow>=2.18.0" keras ai_edge_litert
 pip install -q numpy pyyaml mmap-ninja huggingface-hub tensorboard
@@ -88,10 +73,6 @@ echo "========================================"
 echo "  Setup complete!"
 echo "========================================"
 echo ""
-echo "  The venv is at: $VENV_DIR"
-echo "  It lives on the volume, so it survives pod restarts."
-echo ""
 echo "  To train, run:"
-echo "    source $VENV_DIR/bin/activate"
 echo "    python -u train.py 2>&1 | tee training.log"
 echo ""
