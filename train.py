@@ -284,9 +284,9 @@ while True:
 TARGET_WORD = raw.lower().replace(' ', '_')
 print(f"  → Using: {TARGET_WORD}")
 
-raw_samples = prompt("\nNumber of voice samples [default: 1000, better quality: 2000-5000]: ",
-                     default='1000')
-NUM_SAMPLES = int(raw_samples) if raw_samples.isdigit() else 1000
+raw_samples = prompt("\nNumber of voice samples [default: 10000, better quality: 20000-50000]: ",
+                     default='10000')
+NUM_SAMPLES = int(raw_samples) if raw_samples.isdigit() else 10000
 print(f"  → Samples: {NUM_SAMPLES}")
 
 raw_steps = prompt("\nTraining steps [default: 20000, better quality: 20000-30000]: ",
@@ -314,6 +314,7 @@ os.chdir(BASE)
 # ── Clean up previous training data (keep downloads to save time) ────────────
 print("[Cleanup] Removing previous training artifacts...")
 for d in ['generated_samples', 'generated_augmented_features',
+          'personal_augmented_features', 'personal_samples_trimmed',
           'trained_models', 'microWakeWord']:
     if os.path.exists(d):
         shutil.rmtree(d)
@@ -907,47 +908,18 @@ if USING_REAL:
         print("  ⚠️  No valid clips detected — falling back to synthetic-only.")
         USING_REAL = False
     else:
-        reps_per_clip = max(1, -(-REAL_TARGET // len(raw_clips)))  # ceiling div
-        if reps_per_clip > 200:
-            print(f"  ⚠️  WARNING: Only {len(raw_clips)} clip(s) → each will be "
-                  f"augmented ~{reps_per_clip}x to reach {REAL_TARGET}.")
-            print(f"       For best quality, record at least 15-20 repetitions.")
-            print(f"       Capping augmentation repetitions at 200 per clip to "
-                  f"reduce overfitting risk.")
-            reps_per_clip = 200
-            REAL_TARGET = min(REAL_TARGET, len(raw_clips) * (reps_per_clip + 1))
-            print(f"       Adjusted real target: {REAL_TARGET}")
-
-        augmented_count = 0
+        # Write trimmed clips to a separate directory (NOT generated_samples/).
+        # They'll be run through microWakeWord's full augmentation pipeline in
+        # Step 9b (same RIR, background noise, EQ, etc. as synthetic samples)
+        # and stored in personal_augmented_features/ with higher sampling weight.
+        PERSONAL_CLIPS_DIR = 'personal_samples_trimmed'
+        if os.path.exists(PERSONAL_CLIPS_DIR):
+            shutil.rmtree(PERSONAL_CLIPS_DIR)
+        os.makedirs(PERSONAL_CLIPS_DIR, exist_ok=True)
         for i, clip in enumerate(raw_clips):
-            if augmented_count >= REAL_TARGET:
-                break
-            # Write original
-            orig_path = f'generated_samples/real_{i:04d}_orig.wav'
-            sf.write(orig_path, clip, 16000)
-            augmented_count += 1
-            # Write augmented variants
-            for rep in range(reps_per_clip):
-                if augmented_count >= REAL_TARGET:
-                    break
-                aug = clip.copy()
-                speed = np.random.uniform(0.85, 1.15)
-                new_len = int(len(aug) / speed)
-                aug = np.interp(np.linspace(0, len(aug) - 1, new_len),
-                                np.arange(len(aug)), aug).astype(np.float32)
-                aug = aug * np.random.uniform(0.6, 1.4)
-                aug = aug + (np.random.randn(len(aug)).astype(np.float32)
-                             * np.random.uniform(0.0, 0.008))
-                aug = np.clip(aug, -1.0, 1.0)
-                sf.write(f'generated_samples/real_{i:04d}_aug{rep:03d}.wav',
-                         aug, 16000)
-                augmented_count += 1
-
-        total_samples = len([f for f in os.listdir('generated_samples')
-                             if f.endswith('.wav')])
-        print(f"✅ {augmented_count} real/augmented clips written")
-        print(f"✅ {total_samples} total samples "
-              f"({synth_count} synthetic + {augmented_count} real)")
+            sf.write(f'{PERSONAL_CLIPS_DIR}/clip_{i:04d}.wav', clip, 16000)
+        print(f"✅ {len(raw_clips)} trimmed clips saved to {PERSONAL_CLIPS_DIR}/")
+        print(f"   (Will be augmented via microWakeWord pipeline in Step 9b)")
 
 # ── Step 8: Augmentation data ─────────────────────────────────────────────────
 print("\n[Step 8] Downloading RIRs + background noise (~1.3 GB)...")
@@ -984,7 +956,7 @@ augmenter = Augmentation(
     },
     impulse_paths=['mit_rirs'],
     background_paths=['mit_rirs/RIRS_NOISES/pointsource_noises'],
-    background_min_snr_db=-5, background_max_snr_db=10,
+    background_min_snr_db=5, background_max_snr_db=10,
     min_jitter_s=0.195, max_jitter_s=0.205,
 )
 spectrograms = SpectrogramGeneration(clips=clips_obj, augmenter=augmenter,
@@ -1017,6 +989,50 @@ mmap_te = RaggedMmap(MMAP_TEST)
 assert len(mmap_tr) > 0, '❌ train mmap is empty'
 assert len(mmap_te) > 0, '❌ test mmap is empty — increase NUM_SAMPLES'
 print(f"✅ {len(mmap_tr)} train | {len(mmap_te)} test spectrograms saved")
+
+# ── Step 9b: Generate spectrograms for personal recordings ───────────────────
+PERSONAL_MMAP_TRAIN = 'personal_augmented_features/training/wakeword_mmap'
+PERSONAL_MMAP_TEST  = 'personal_augmented_features/testing/wakeword_mmap'
+
+if USING_REAL and os.path.isdir('personal_samples_trimmed'):
+    print("\n[Step 9b] Generating spectrograms for personal recordings...")
+    os.makedirs(os.path.dirname(PERSONAL_MMAP_TRAIN), exist_ok=True)
+    os.makedirs(os.path.dirname(PERSONAL_MMAP_TEST),  exist_ok=True)
+
+    personal_clips = Clips(
+        input_directory='personal_samples_trimmed', file_pattern='*.wav',
+        max_clip_duration_s=None, remove_silence=False,
+        random_split_seed=10, split_count=0.1)
+    # Same augmentation pipeline as synthetic samples
+    personal_spectrograms = SpectrogramGeneration(
+        clips=personal_clips, augmenter=augmenter,
+        slide_frames=10, step_ms=10)
+
+    print("  Writing personal train split...")
+    RaggedMmap.from_generator(
+        out_dir=PERSONAL_MMAP_TRAIN,
+        sample_generator=personal_spectrograms.spectrogram_generator(
+            split='train', repeat=2),
+        batch_size=100, verbose=True)
+    print("  Writing personal test split...")
+    RaggedMmap.from_generator(
+        out_dir=PERSONAL_MMAP_TEST,
+        sample_generator=personal_spectrograms.spectrogram_generator(
+            split='test', repeat=1),
+        batch_size=100, verbose=True)
+
+    # Validation → testing symlink for personal features too
+    p_val = 'personal_augmented_features/validation'
+    p_test = 'personal_augmented_features/testing'
+    if os.path.islink(p_val):
+        os.unlink(p_val)
+    elif os.path.isdir(p_val):
+        shutil.rmtree(p_val)
+    os.symlink(os.path.abspath(p_test), p_val)
+
+    p_mmap_tr = RaggedMmap(PERSONAL_MMAP_TRAIN)
+    p_mmap_te = RaggedMmap(PERSONAL_MMAP_TEST)
+    print(f"✅ {len(p_mmap_tr)} train | {len(p_mmap_te)} test personal spectrograms saved")
 
 # ── Step 10: Negative datasets ────────────────────────────────────────────────
 print("\n[Step 10] Downloading negative datasets...")
@@ -1065,8 +1081,13 @@ train_dirs = [d for d in neg_dirs if 'eval' not in d]
 
 neg_features = []
 for d in train_dirs:
+    # Match reference: speech/dinner_party datasets get 12.0, no_speech gets 5.0
+    if 'no_speech' in d:
+        _neg_weight = 5.0
+    else:
+        _neg_weight = 12.0
     neg_features.append({
-        'features_dir': f'negative_datasets/{d}', 'sampling_weight': 10.0,
+        'features_dir': f'negative_datasets/{d}', 'sampling_weight': _neg_weight,
         'penalty_weight': 1.0, 'truth': False,
         'truncation_strategy': 'random', 'type': 'mmap'
     })
@@ -1081,19 +1102,31 @@ config = {
     'window_step_ms': 10,
     'train_dir': 'trained_models/wakeword',
     'spectrogram_length': 204,
-    'stride': 3,
+    'stride': 2,
     'features': [
-        {   # positive train — used during training
+        {   # positive train (synthetic) — used during training
             'features_dir': 'generated_augmented_features',
             'sampling_weight': 2.0, 'penalty_weight': 1.0, 'truth': True,
             'truncation_strategy': 'truncate_start', 'type': 'mmap'
         },
-        {   # positive test — eval only (sampling_weight=0 keeps it out of training)
+        {   # positive test (synthetic) — eval only
             'features_dir': 'generated_augmented_features',
             'sampling_weight': 0.0, 'penalty_weight': 1.0, 'truth': True,
             'truncation_strategy': 'split', 'type': 'mmap'
         },
-    ] + neg_features,
+    ] + ([
+        {   # personal recordings train — weighted higher (3x) for emphasis
+            'features_dir': 'personal_augmented_features',
+            'sampling_weight': 3.0, 'penalty_weight': 1.0, 'truth': True,
+            'truncation_strategy': 'truncate_start', 'type': 'mmap'
+        },
+        {   # personal recordings test — eval only
+            'features_dir': 'personal_augmented_features',
+            'sampling_weight': 0.0, 'penalty_weight': 1.0, 'truth': True,
+            'truncation_strategy': 'split', 'type': 'mmap'
+        },
+    ] if USING_REAL and os.path.isdir('personal_augmented_features') else [])
+    + neg_features,
     'training_steps': [TRAINING_STEPS],
     'positive_class_weight': [1],
     'negative_class_weight': [20],
@@ -1260,7 +1293,7 @@ except Exception as e:
         '--residual_connection', '0,0,0,0',
         '--first_conv_filters', '32',
         '--first_conv_kernel_size', '5',
-        '--stride', '3',
+        '--stride', '2',
     ], text=True, env=train_env, stderr=subprocess.PIPE)
 
     # Tee stderr to both console and log file in real-time
@@ -1319,7 +1352,7 @@ except Exception as e:
             'probability_cutoff': 0.5,
             'sliding_window_size': 10,
             'feature_step_size': 10,
-            'tensor_arena_size': 22860,
+            'tensor_arena_size': 30000,
             'minimum_esphome_version': '2024.7.0'
         }
     }
