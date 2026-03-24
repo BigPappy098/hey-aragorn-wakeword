@@ -137,11 +137,15 @@ The script is fully interactive — it will ask you for:
 
 Then it runs automatically. See [Training Walkthrough](#training-walkthrough) below for details.
 
-### Step 9: When You're Done
+### Step 9: Keeping the Pod Alive
 
-Training keeps running even if you close the browser tab — RunPod's web terminal stays alive in the background.
+After training finishes (or while it's running), run `sleep infinity` to keep the pod from going idle and disconnecting your terminal:
 
-Everything (repo, venv, datasets, models) lives on the volume at `/workspace/`, so it all persists across pod restarts. To stop billing when training is complete: Go to RunPod dashboard → click **Stop** on your pod.
+```bash
+sleep infinity
+```
+
+Everything (repo, venv, datasets, models) lives on the volume at `/workspace/`, so it all persists across pod restarts. To stop billing when you're done: Go to RunPod dashboard → click **Stop** on your pod.
 
 If you restart the pod later, just re-activate the venv and you're ready to go:
 
