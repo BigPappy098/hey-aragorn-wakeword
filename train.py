@@ -570,25 +570,71 @@ if not os.path.exists('piper-sample-generator'):
 print("✅ Repos ready")
 
 # ── Ensure PyTorch + piper-tts are available (needed by piper-sample-generator)
+def _detect_cuda_version():
+    """Detect the CUDA driver version to install a matching PyTorch build."""
+    try:
+        out = subprocess.run(
+            ['nvidia-smi', '--query-gpu=driver_version', '--format=csv,noheader'],
+            capture_output=True, text=True)
+        if out.returncode == 0 and out.stdout.strip():
+            # Get CUDA version from nvidia-smi
+            cuda_out = subprocess.run(
+                ['nvidia-smi'], capture_output=True, text=True)
+            # Parse "CUDA Version: XX.Y" from nvidia-smi output
+            import re
+            m = re.search(r'CUDA Version:\s*(\d+)\.(\d+)', cuda_out.stdout)
+            if m:
+                return int(m.group(1)), int(m.group(2))
+    except Exception:
+        pass
+    return None, None
+
+def _pytorch_install_args():
+    """Return pip install args for the best PyTorch CUDA build."""
+    _is_gpu = os.path.exists('/dev/nvidia0') or shutil.which('nvidia-smi')
+    if not _is_gpu:
+        return ['--index-url', 'https://download.pytorch.org/whl/cpu']
+    major, minor = _detect_cuda_version()
+    if major is None:
+        return []  # default index, let pip figure it out
+    cuda_tag = f"cu{major}{minor}"
+    # PyTorch provides wheels for specific CUDA versions (cu118, cu121, cu124, cu126, etc.)
+    # Pick the best matching one that doesn't exceed the driver's CUDA version
+    available = ['cu118', 'cu121', 'cu124', 'cu126']
+    best = None
+    for tag in available:
+        tag_ver = int(tag[2:])  # e.g. 'cu124' → 124
+        driver_ver = major * 10 + minor  # e.g. 12, 4 → 124
+        if tag_ver <= driver_ver:
+            best = tag
+    if best:
+        print(f"[dep] CUDA driver {major}.{minor} detected → using PyTorch {best}")
+        return ['--index-url', f'https://download.pytorch.org/whl/{best}']
+    return []  # fallback to default
+
+_need_pytorch_install = False
 try:
     import torch  # noqa: F401
-    print(f"[dep] PyTorch {torch.__version__} already installed — keeping it")
-except ImportError:
-    # Only needed for piper-tts (sample generation, not training).
-    # On GPU machines, avoid the CPU-only index — it can clobber nvidia-*
-    # packages that TensorFlow needs for CUDA access.
-    _is_gpu_machine = os.path.exists('/dev/nvidia0') or shutil.which('nvidia-smi')
-    if _is_gpu_machine:
-        print("[dep] PyTorch not found — installing (GPU machine detected, using default index)...")
-        subprocess.run([sys.executable, '-m', 'pip', 'install', '-q',
-                        'torch', 'torchvision', 'torchaudio'],
-                       check=True)
+    # Check if existing PyTorch can actually see the GPU
+    if (os.path.exists('/dev/nvidia0') or shutil.which('nvidia-smi')):
+        if not torch.cuda.is_available():
+            print(f"[dep] PyTorch {torch.__version__} installed but can't see GPU — reinstalling...")
+            _need_pytorch_install = True
+        else:
+            print(f"[dep] PyTorch {torch.__version__} with CUDA — OK")
     else:
-        print("[dep] PyTorch not found — installing CPU-only version...")
-        subprocess.run([sys.executable, '-m', 'pip', 'install', '-q',
-                        'torch', 'torchvision', 'torchaudio',
-                        '--index-url', 'https://download.pytorch.org/whl/cpu'],
-                       check=True)
+        print(f"[dep] PyTorch {torch.__version__} (CPU) — OK")
+except ImportError:
+    _need_pytorch_install = True
+
+if _need_pytorch_install:
+    _pt_args = _pytorch_install_args()
+    _is_gpu = os.path.exists('/dev/nvidia0') or shutil.which('nvidia-smi')
+    _mode = "GPU" if _is_gpu else "CPU-only"
+    print(f"[dep] Installing PyTorch ({_mode})...")
+    subprocess.run([sys.executable, '-m', 'pip', 'install', '-q',
+                    'torch', 'torchvision', 'torchaudio'] + _pt_args,
+                   check=True)
 
 try:
     import piper  # noqa: F401
