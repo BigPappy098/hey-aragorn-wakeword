@@ -632,6 +632,10 @@ if _need_pytorch_install:
     _is_gpu = os.path.exists('/dev/nvidia0') or shutil.which('nvidia-smi')
     _mode = "GPU" if _is_gpu else "CPU-only"
     print(f"[dep] Installing PyTorch ({_mode})...")
+    # Uninstall first — pip won't swap CUDA variants (cu130→cu124) without this
+    subprocess.run([sys.executable, '-m', 'pip', 'uninstall', '-y',
+                    'torch', 'torchvision', 'torchaudio'],
+                   capture_output=True)
     subprocess.run([sys.executable, '-m', 'pip', 'install', '-q',
                     'torch', 'torchvision', 'torchaudio'] + _pt_args,
                    check=True)
