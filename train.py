@@ -593,20 +593,16 @@ subprocess.run(
     check=True)
 print("✅ Repos ready")
 
-# piper-sample-generator is run via subprocess with its repo dir on sys.path.
-# We do NOT pip-install it because its pyproject.toml pins numpy>=2 and
-# audiomentations==0.33 which conflict with TF's numpy 1.x.
+# piper-sample-generator uses generate_samples.py (flat script, not a package).
+# It also imports from piper_train/ within its own repo, so PYTHONPATH must include it.
 PSG_DIR = os.path.abspath('piper-sample-generator')
+PSG_SCRIPT = os.path.join(PSG_DIR, 'generate_samples.py')
 
-# Add to PYTHONPATH permanently so all subprocesses can find the module.
 _existing_pp = os.environ.get('PYTHONPATH', '')
 os.environ['PYTHONPATH'] = PSG_DIR + (':' + _existing_pp if _existing_pp else '')
 
-# Verify the module is actually findable
-_main_py = os.path.join(PSG_DIR, 'piper_sample_generator', '__main__.py')
-if not os.path.isfile(_main_py):
-    print(f"ERROR: Cannot find {_main_py}")
-    print(f"  PSG_DIR = {PSG_DIR}")
+if not os.path.isfile(PSG_SCRIPT):
+    print(f"ERROR: Cannot find {PSG_SCRIPT}")
     print(f"  Contents: {os.listdir(PSG_DIR) if os.path.isdir(PSG_DIR) else 'DIR NOT FOUND'}")
     sys.exit(1)
 print(f"  piper-sample-generator: {PSG_DIR}")
@@ -786,7 +782,7 @@ elif LOW_RESOURCE:
 if not HAS_AVX2:
     os.environ['ATEN_CPU_CAPABILITY'] = 'default'
 subprocess.run([
-    sys.executable, '-m', 'piper_sample_generator',
+    sys.executable, PSG_SCRIPT,
     TARGET_WORD, '--max-samples', '1', '--batch-size', '1',
     '--model', model_path, '--output-dir', preview_dir
 ], text=True, check=True)
@@ -824,7 +820,7 @@ if os.path.exists('generated_samples'):
     shutil.rmtree('generated_samples')
 os.makedirs('generated_samples')
 subprocess.run([
-    sys.executable, '-m', 'piper_sample_generator',
+    sys.executable, PSG_SCRIPT,
     TARGET_WORD, '--max-samples', str(SYNTHETIC_COUNT), '--batch-size', str(PIPER_BATCH_SIZE),
     '--model', model_path, '--output-dir', 'generated_samples'
 ], text=True, check=True)
