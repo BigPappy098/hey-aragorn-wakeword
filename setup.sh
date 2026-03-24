@@ -48,11 +48,25 @@ echo "Installing additional dependencies..."
 pip install -q soundfile librosa "audiomentations>=0.35.0" webrtcvad "datasets<3"
 
 # PyTorch: only needed for piper-tts (sample generation, not training).
-# On GPU machines, DON'T install CPU-only PyTorch — it can clobber the
-# nvidia-* packages that TensorFlow needs for CUDA/cuDNN access.
+# Install the build matching the driver's CUDA version so GPU is available.
 if [ "$HAS_GPU" = true ]; then
-    echo "GPU machine — installing PyTorch (default, preserves CUDA libs)..."
-    pip install -q torch torchvision torchaudio
+    CUDA_VER=$(nvidia-smi 2>/dev/null | grep -oP 'CUDA Version:\s*\K[0-9]+\.[0-9]+' || echo "")
+    if [ -n "$CUDA_VER" ]; then
+        # Convert "12.4" → "cu124"
+        CUDA_TAG="cu$(echo "$CUDA_VER" | tr -d '.')"
+        # Pick best available PyTorch wheel (cu118, cu121, cu124, cu126)
+        case "$CUDA_TAG" in
+            cu118|cu119)              PT_INDEX="cu118" ;;
+            cu120|cu121)              PT_INDEX="cu121" ;;
+            cu122|cu123|cu124|cu125)  PT_INDEX="cu124" ;;
+            *)                        PT_INDEX="cu126" ;;
+        esac
+        echo "GPU machine — CUDA $CUDA_VER → installing PyTorch ($PT_INDEX)..."
+        pip install -q torch torchvision torchaudio --index-url "https://download.pytorch.org/whl/$PT_INDEX"
+    else
+        echo "GPU machine — installing PyTorch (default index)..."
+        pip install -q torch torchvision torchaudio
+    fi
 else
     echo "No GPU — installing CPU-only PyTorch..."
     pip install -q torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cpu
