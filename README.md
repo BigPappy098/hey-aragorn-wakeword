@@ -71,6 +71,7 @@ On the pod configuration screen:
 | **Container Disk** | 20 GB (minimum) |
 | **Volume Disk** | **150 GB** (needed for augmentation datasets) |
 | **Volume Mount Path** | `/workspace` |
+| **Docker Command** | `sleep infinity` |
 
 > **Important — Volume Size:** The volume must be at least **100 GB**. The background noise datasets (WHAM, CHiME, FMA, AudioSet) need ~30 GB to download and ~12 GB converted. The negative datasets need another ~3 GB. Generated samples and training artifacts need ~5-10 GB.
 
@@ -137,13 +138,7 @@ The script is fully interactive — it will ask you for:
 
 Then it runs automatically. See [Training Walkthrough](#training-walkthrough) below for details.
 
-### Step 9: Keeping the Pod Alive
-
-After training finishes (or while it's running), run `sleep infinity` to keep the pod from going idle and disconnecting your terminal:
-
-```bash
-sleep infinity
-```
+### Step 9: When You're Done
 
 Everything (repo, venv, datasets, models) lives on the volume at `/workspace/`, so it all persists across pod restarts. To stop billing when you're done: Go to RunPod dashboard → click **Stop** on your pod.
 
